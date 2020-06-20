@@ -1,6 +1,7 @@
--- local dump = require "luadump"
+local dump = require "luadump"
 local pipe = require "autosig/pipe"
 local func = require "autosig/func"
+local coor = require "autosig/coor"
 
 local defBridgeList = {"cement", "iron", "stone"}
 local sideList = {_("LEFT"), _("RIGHT"), _("BOTH")}
@@ -35,16 +36,6 @@ local showWindow = function()
     local vLayout = gui.boxLayout_create("autosig.window.vLayout", "VERTICAL")
     state.windows.window = gui.window_create("autosig.window", _("TITLE"), vLayout)
     
-    local bridgeLabel = gui.textView_create("autosig.bridge.text", _("BRIDGE_TYPE"), 200)
-    local bridgeImage = gui.imageView_create("autosig.bridge.image", "ui/bridges/" .. state.bridgeList[state.bridge] .. ".tga")
-    local bridgeButton = gui.button_create("autosig.bridge.btn", bridgeImage)
-    local bridgeLayout = gui.boxLayout_create("autosig.bridge.layout", "HORIZONTAL")
-    local bridgeComp = gui.component_create("autosig.bridge", "a")
-    bridgeComp:setLayout(bridgeLayout)
-    bridgeLayout:addItem(bridgeLabel)
-    bridgeLayout:addItem(bridgeButton)
-    state.windows.bridge = bridgeImage
-    
     local sideLabel = gui.textView_create("autosig.side.text", _("SIGNAL_SIDE"), 200)
     local sideValue = gui.textView_create("autosig.side.value", sideList[state.side])
     local sideButton = gui.button_create("autosig.side.btn", sideValue)
@@ -54,16 +45,6 @@ local showWindow = function()
     sideLayout:addItem(sideLabel)
     sideLayout:addItem(sideButton)
     state.windows.side = sideValue
-    
-    local sigLabel = gui.textView_create("autosig.signal.text", _("SIGNAL_TYPE"), 200)
-    local sigImage = gui.imageView_create("autosig.signal.image", "ui/models/" .. state.signalList[state.signal] .. ".tga")
-    local sigButton = gui.button_create("autosig.signal.btn", sigImage)
-    local sigLayout = gui.boxLayout_create("autosig.signal.layout", "HORIZONTAL")
-    local sigComp = gui.component_create("autosig.signal", "")
-    sigComp:setLayout(sigLayout)
-    sigLayout:addItem(sigLabel)
-    sigLayout:addItem(sigButton)
-    state.windows.signal = sigImage
     
     local distLabel = gui.textView_create("autosig.distance.lable.", _("SIGNAL_DISTANCE"))
     local distValue = gui.textView_create("autosig.distance.value", tostring(state.distance))
@@ -85,8 +66,6 @@ local showWindow = function()
     distLayout:addItem(distAddPlusButton)
     state.windows.distance = distValue
     
-    bridgeButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "bridge", {}) end)
-    sigButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "signal", {}) end)
     distAddButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = 10}) end)
     sideButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "side", {}) end)
     distAddPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = 50}) end)
@@ -96,8 +75,6 @@ local showWindow = function()
     vLayout:addItem(distLabel)
     vLayout:addItem(distComp)
     vLayout:addItem(sideComp)
-    vLayout:addItem(bridgeComp)
-    vLayout:addItem(sigComp)
     
     local mainView = game.gui.getContentRect("mainView")
     local mainMenuHeight = game.gui.getContentRect("mainMenuTopBar")[4] + game.gui.getContentRect("mainMenuBottomBar")[4]
@@ -133,10 +110,153 @@ local createComponents = function()
         state.use:onClick(function()
             if state.use then state.showWindow = false end
             game.interface.sendScriptEvent("__autosig__", "use", {})
-            game.interface.sendScriptEvent("__edgeTool__", "off", { sender = "autosig" })
+            game.interface.sendScriptEvent("__edgeTool__", "off", {sender = "autosig"})
         end)
         state.button:onClick(function()state.showWindow = not state.showWindow end)
     end
+end
+
+local function build(param)
+    local edgeObjects = param.edgeObjects
+    local nodes = param.nodes
+    local map = api.engine.system.streetSystem.getNode2TrackEdgeMap()
+    local edge = false
+    local newObject = false
+    
+    for _, e in ipairs(map[nodes[1]]) do
+        for _, d in ipairs(map[nodes[2]]) do
+            if d == e then
+                if not edge then
+                    edge = {entity = e, comp = api.engine.getComponent(e, api.type.ComponentType.BASE_EDGE)}
+                else return end
+            end
+        end
+    end
+    if not edge then return end
+    
+    for _, o in ipairs(edge.comp.objects) do
+        if not func.contains(edgeObjects, o[1]) then
+            if not newObject then
+                newObject = o[1]
+            else return end
+        end
+    end
+    if not newObject then return end
+    
+    local tpn = api.engine.getComponent(edge.entity, api.type.ComponentType.TRANSPORT_NETWORK)
+    local sections = func.fold(tpn.edges, pipe.new * {},
+        function(posList, sec)
+            local s = posList[#posList] and posList[#posList][2] or 0
+            local length = sec.geometry.length
+            return posList / {s, s + length, length}
+        end)
+    
+    local signals = {}
+    for i, sec in ipairs(sections) do
+        local s, e, l = table.unpack(sec)
+        local sigF = api.engine.system.signalSystem.getSignal(api.type.EdgeId.new(edge.entity, i - 1), false)
+        local sigR = api.engine.system.signalSystem.getSignal(api.type.EdgeId.new(edge.entity, i - 1), true)
+        if sigF > 0 then
+            signals[sigF] = {pos = e, isBackward = false}
+        end
+        if sigR > 0 then
+            signals[sigR] = {pos = s, isBackward = true}
+        end
+    end
+    local totalLength = sections[#sections][2]
+    
+    local newSigInfo = signals[newObject]
+    if not newSigInfo then return end
+    
+    local edgeList = {func.with(edge, {isBackward = not newSigInfo.isBackward, length = totalLength, startPos = 0, endPos = totalLength})}
+    
+    local isSearchFinished = false
+    repeat
+        local lastEdge = edgeList[#edgeList]
+        local node = lastEdge.isBackward and lastEdge.comp.node0 or lastEdge.comp.node1
+        local nextEdges = {}
+        for _, e in ipairs(map[node]) do
+            if e ~= lastEdge.entity then
+                table.insert(nextEdges, e)
+            end
+        end
+        if #nextEdges == 1 then
+            local nextEdge = nextEdges[1]
+            local comp = api.engine.getComponent(nextEdge, api.type.ComponentType.BASE_EDGE)
+            local length = coor.new(comp.tangent0):length()
+            table.insert(edgeList, {
+                entity = nextEdge,
+                comp = comp,
+                isBackward = comp.node1 == node,
+                startPos = edgeList[#edgeList].endPos,
+                endPos = edgeList[#edgeList].endPos + length,
+                length = length
+            })
+        else
+            isSearchFinished = true
+        end
+    until isSearchFinished
+    
+    
+    local allPos = {}
+    for i = newSigInfo.pos + state.distance, totalLength, state.distance do
+        table.insert(allPos, i)
+    end
+    
+    for _, edge in ipairs(edgeList) do
+        edge.allPos = func.filter(allPos, function(pos) return pos > edge.startPos and pos < edge.endPos end)
+    end
+    
+    local proposal = api.type.SimpleProposal.new()
+
+    for id, edge in ipairs(func.filter(edgeList, function(e) return #e.allPos > 0 end)) do
+        local track = api.type.SegmentAndEntity.new()
+        local comp = api.engine.getComponent(edge.entity, api.type.ComponentType.BASE_EDGE)
+        local trackEdge = api.engine.getComponent(edge.entity, api.type.ComponentType.BASE_EDGE_TRACK)
+        
+        track.entity = -id
+        track.playerOwned = {player = api.engine.util.getPlayer()}
+        
+        track.comp.node0 = comp.node0
+        track.comp.node1 = comp.node1
+        for i = 1, 3 do
+            track.comp.tangent0[i] = comp.tangent0[i]
+            track.comp.tangent1[i] = comp.tangent1[i]
+        end
+        track.comp.type = comp.type
+        track.comp.typeIndex = comp.typeIndex
+        
+        
+        track.type = 1
+        track.trackEdge.trackType = trackEdge.trackType
+        track.trackEdge.catenary = trackEdge.catenary
+        local newSigList = {}
+        
+        for n, pos in ipairs(edge.allPos) do
+            local rPos = (pos - edge.startPos) / edge.length
+            if edge.isBackward then rPos = 1 - rPos end
+            local sig = api.type.SimpleStreetProposal.EdgeObject.new()
+            sig.edgeEntity = -id
+            sig.param = rPos
+            sig.oneWay = param.oneWay
+            sig.left = param.left
+            sig.model = param.model
+            sig.playerEntity = api.engine.util.getPlayer()
+            
+            
+            proposal.streetProposal.edgeObjectsToAdd[#proposal.streetProposal.edgeObjectsToAdd + 1] = sig
+            table.insert(newSigList, {-#proposal.streetProposal.edgeObjectsToAdd, 2})
+        end
+        
+        track.comp.objects = newSigList
+        
+        proposal.streetProposal.edgesToAdd[e] = track
+        proposal.streetProposal.edgesToRemove[e] = edge.entity
+    end
+
+    dump()(proposal)
+    api.cmd.sendCommand(api.cmd.make.buildProposal(proposal, nil, false), function(x)dump()(x) end)
+
 end
 
 local script = {
@@ -144,90 +264,29 @@ local script = {
         if (id == "__edgeTool__" and param.sender ~= "autosig") then
             if (name == "off") then
                 state.use = false
-            elseif (name == "init") then
-                state = func.with(state, param)
             end
         elseif (id == "__autosig__") then
-            if (name == "bridge") then
-                state.bridge = state.bridge < #state.bridgeList and state.bridge + 1 or 1
-            elseif (name == "distance") then
+            if (name == "distance") then
                 state.distance = state.distance + param.step
                 if state.distance < 10 then state.distance = 10 end
-            elseif (name == "signal") then
-                state.signal = state.signal < #state.signalList and state.signal + 1 or 1
             elseif (name == "side") then
                 state.side = state.side < #sideList and state.side + 1 or 1
             elseif (name == "use") then
                 state.use = not state.use
             elseif (name == "build") then
-                local remove, edges = table.unpack(param)
-                for _, id in ipairs(remove) do
-                    game.interface.bulldoze(id)
-                end
-                local id = game.interface.buildConstruction(
-                    "autosig.con",
-                    {
-                        edges = edges,
-                        bridge = state.bridgeList[state.bridge],
-                        signal = state.signalList[state.signal],
-                        distance = state.distance,
-                        side = state.side
-                    },
-                    {1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1}
-                )
-                game.interface.setPlayer(id, game.interface.getPlayer())
-                game.interface.upgradeConstruction(
-                    id,
-                    "autosig.con",
-                    {
-                        edges = edges,
-                        bridge = state.bridgeList[state.bridge],
-                        signal = state.signalList[state.signal],
-                        distance = state.distance,
-                        side = state.side,
-                        isFinal = true
-                    }
-                )
-                game.interface.bulldoze(id)
+                build(param)
             end
         end
     end,
-    save = function() 
-        if (not state.signalList) then state.signalList = defSignalList end
-        if (not state.bridgeList) then state.bridgeList = defBridgeList end
-        if #state.signalList == 0 then state.signalList = defSignalList end
-        if #state.bridgeList == 0 then state.bridgeList = defBridgeList end
-        return state 
+    save = function()
+        return state
     end,
     load = function(data)
         if data then
-            if (not data.signalList) then data.signalList = defSignalList end
-            if (not data.bridgeList) then data.bridgeList = defBridgeList end
-            if #data.signalList == 0 then data.signalList = defSignalList end
-            if #data.bridgeList == 0 then data.bridgeList = defBridgeList end
-
-            state.bridge = data.bridge <= #data.bridgeList and data.bridge or 1
-            state.signal = data.signal <= #data.signalList and data.signal or 1
             state.distance = data.distance
             state.use = data.use
             state.side = data.side
-            state.signalList = data.signalList
-            state.bridgeList = data.bridgeList
         end
-    end,
-    guiInit = function()
-        local signalList = defSignalList
-        pcall(function()
-            local sList = {}
-            local file = io.open("autosig.rec", "r")
-            for line in file:lines() do
-                table.insert(sList, line)
-            end
-            file:close()
-            if #sList > 0 then signalList = sList end
-        end)
-
-        game.interface.sendScriptEvent("__edgeTool__", "init", { signalList = signalList })
     end,
     guiUpdate = function()
         createComponents()
@@ -239,8 +298,6 @@ local script = {
         if state.windows.window then
             state.windows.distance:setText(tostring(state.distance))
             state.windows.side:setText(sideList[state.side])
-            state.windows.bridge:setImage("ui/bridges/" .. state.bridgeList[state.bridge] .. ".tga")
-            state.windows.signal:setImage("ui/models/" .. state.signalList[state.signal] .. ".tga")
         end
         state.useLabel:setText(state.use and _("ON") or _("OFF"))
     end,
@@ -249,77 +306,24 @@ local script = {
             local proposal = param and param.proposal and param.proposal.proposal
             local toRemove = param.proposal.toRemove
             local toAdd = param.proposal.toAdd
-            if 
-                (not toAdd or #toAdd == 0) and
+            if
+            (not toAdd or #toAdd == 0) and
                 (not toRemove or #toRemove == 0) and
-                proposal and proposal.addedSegments and #proposal.addedSegments > 1 and proposal.addedNodes
-                and (not proposal.removedSegments or #proposal.removedSegments == 0)
-                and (not proposal.edgeObjectsToAdd or #proposal.edgeObjectsToAdd == 0)
+                proposal and proposal.addedSegments and #proposal.addedSegments == 1 and
+                proposal.removedSegments and #proposal.removedSegments == #proposal.addedSegments and
+                proposal.addedNodes and #proposal.addedNodes == 0 and
+                proposal.removedNodes and #proposal.removedNodes == 0 and
+                proposal.edgeObjectsToAdd and #proposal.edgeObjectsToAdd == 1
             then
-                local nodes = {}
-                local ids = {}
-                local edges = {}
-                for i = 1, #proposal.addedNodes do
-                    local node = proposal.addedNodes[i]
-                    local id = node.entity
-                    nodes[id] = {
-                        node.comp.position[1],
-                        node.comp.position[2],
-                        node.comp.position[3]
-                    }
-                end
-                local renewedSegements = {}
-                for _, v in pairs(proposal.old2newSegments) do
-                    for _, seg in ipairs(v) do
-                        table.insert(renewedSegements, seg)
-                    end
-                end
-                for i = 1, #proposal.addedSegments do
-                    local seg = proposal.addedSegments[i]
-                    if not (pipe.contains(seg.entity)(renewedSegements)) then
-                        if (seg.type == 1) then
-                            table.insert(ids, seg.entity)
-                            local node0 = nodes[seg.comp.node0]
-                            local node1 = nodes[seg.comp.node1]
-                            local snap0 = not node0
-                            local snap1 = not node1
-                            
-                            local edge = {
-                                {
-                                    node0 or (game.interface.getEntity(seg.comp.node0).position),
-                                    {
-                                        seg.comp.tangent0[1],
-                                        seg.comp.tangent0[2],
-                                        seg.comp.tangent0[3]
-                                    }
-                                },
-                                {
-                                    node1 or (game.interface.getEntity(seg.comp.node1).position),
-                                    {
-                                        seg.comp.tangent1[1],
-                                        seg.comp.tangent1[2],
-                                        seg.comp.tangent1[3]
-                                    }
-                                }
-                            }
-                            local edgeType = seg.comp.type + 1
-                            local catenary = seg.params.catenary
-                            local trackType = seg.params.trackType == 0 and 1 or 2
-                            
-                            table.insert(edges, {
-                                edge = edge,
-                                edgeType = edgeType,
-                                catenary = catenary,
-                                snap0 = snap0,
-                                snap1 = snap1,
-                                trackType = trackType
-                            })
-                        end
-                    end
-                end
-                if (#ids > 0) then
-                    game.interface.sendScriptEvent("__autosig__", "build", {ids, edges})
-                end
+                local newSegement = proposal.addedSegments[1]
+                local nodes = {newSegement.comp.node0, newSegement.comp.node1}
+                local edgeObjects = func.map(proposal.removedSegments[1].comp.objects, pipe.select(1))
+                local object = proposal.edgeObjectsToAdd[1]
+                local model = api.res.modelRep.getName(object.modelInstance.modelId)
+                local left = object.left
+                local oneWay = object.oneWay
+                dump()(proposal)
+                game.interface.sendScriptEvent("__autosig__", "build", {nodes = nodes, edgeObjects = edgeObjects, model = model, left = left, oneWay = oneWay})
             end
         end
     end
