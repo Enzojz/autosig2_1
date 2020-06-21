@@ -1,6 +1,6 @@
 -- local dump = require "luadump"
-local pipe = require "autosig/pipe"
-local func = require "autosig/func"
+local pipe = require "autosig2/pipe"
+local func = require "autosig2/func"
 
 local state = {
     windows = {
@@ -15,16 +15,16 @@ local state = {
 }
 
 local showWindow = function()
-    local distValue = gui.textView_create("autosig.distance.value", tostring(state.distance))
-    local distAdd = gui.textView_create("autosig.distance.add.text", "+")
-    local distSub = gui.textView_create("autosig.distance.sub.text", "-")
-    local distAddPlus = gui.textView_create("autosig.distance.addp.text", "++")
-    local distSubPlus = gui.textView_create("autosig.distance.subp.text", "--")
-    local distAddButton = gui.button_create("autosig.distance.add", distAdd)
-    local distSubButton = gui.button_create("autosig.distance.sub", distSub)
-    local distAddPlusButton = gui.button_create("autosig.distance.addp", distAddPlus)
-    local distSubPlusButton = gui.button_create("autosig.distance.subp", distSubPlus)
-    local distLayout = gui.boxLayout_create("autosig.distance.layout", "HORIZONTAL")
+    local distValue = gui.textView_create("autosig2.distance.value", tostring(state.distance))
+    local distAdd = gui.textView_create("autosig2.distance.add.text", "+")
+    local distSub = gui.textView_create("autosig2.distance.sub.text", "-")
+    local distAddPlus = gui.textView_create("autosig2.distance.addp.text", "++")
+    local distSubPlus = gui.textView_create("autosig2.distance.subp.text", "--")
+    local distAddButton = gui.button_create("autosig2.distance.add", distAdd)
+    local distSubButton = gui.button_create("autosig2.distance.sub", distSub)
+    local distAddPlusButton = gui.button_create("autosig2.distance.addp", distAddPlus)
+    local distSubPlusButton = gui.button_create("autosig2.distance.subp", distSubPlus)
+    local distLayout = gui.boxLayout_create("autosig2.distance.layout", "HORIZONTAL")
     
     distLayout:addItem(distSubPlusButton)
     distLayout:addItem(distSubButton)
@@ -33,16 +33,16 @@ local showWindow = function()
     distLayout:addItem(distAddPlusButton)
     state.windows.distance = distValue
     
-    state.windows.window = gui.window_create("autosig.window", _("SIGNAL_DISTANCE"), distLayout)
+    state.windows.window = gui.window_create("autosig2.window", _("SIGNAL_DISTANCE"), distLayout)
     
-    distAddButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = 10}) end)
-    distAddPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = 50}) end)
-    distSubButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = -10}) end)
-    distSubPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = -50}) end)
+    distAddButton:onClick(function()game.interface.sendScriptEvent("__autosig2__", "distance", {step = 10}) end)
+    distAddPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig2__", "distance", {step = 50}) end)
+    distSubButton:onClick(function()game.interface.sendScriptEvent("__autosig2__", "distance", {step = -10}) end)
+    distSubPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig2__", "distance", {step = -50}) end)
     
     local mainView = game.gui.getContentRect("mainView")
     local mainMenuHeight = game.gui.getContentRect("mainMenuTopBar")[4] + game.gui.getContentRect("mainMenuBottomBar")[4]
-    local buttonX = game.gui.getContentRect("autosig.button")[1]
+    local buttonX = game.gui.getContentRect("autosig2.button")[1]
     local size = game.gui.calcMinimumSize(state.windows.window.id)
     local y = mainView[4] - size[2] - mainMenuHeight
     
@@ -58,20 +58,20 @@ end
 
 local createComponents = function()
     if (not state.button) then
-        local label = gui.textView_create("autosig.lable", _("AUTOSIG"))
-        state.button = gui.button_create("autosig.button", label)
+        local label = gui.textView_create("autosig2.lable", _("AUTOSIG"))
+        state.button = gui.button_create("autosig2.button", label)
         
-        state.useLabel = gui.textView_create("autosig.use.text", state.use and _("ON") or _("OFF"))
-        state.use = gui.button_create("autosig.use", state.useLabel)
+        state.useLabel = gui.textView_create("autosig2.use.text", state.use and _("ON") or _("OFF"))
+        state.use = gui.button_create("autosig2.use", state.useLabel)
         
-        game.gui.boxLayout_addItem("gameInfo.layout", gui.component_create("gameInfo.autosig.sep", "VerticalLine").id)
-        game.gui.boxLayout_addItem("gameInfo.layout", "autosig.button")
-        game.gui.boxLayout_addItem("gameInfo.layout", "autosig.use")
+        game.gui.boxLayout_addItem("gameInfo.layout", gui.component_create("gameInfo.autosig2.sep", "VerticalLine").id)
+        game.gui.boxLayout_addItem("gameInfo.layout", "autosig2.button")
+        game.gui.boxLayout_addItem("gameInfo.layout", "autosig2.use")
         
         state.use:onClick(function()
             if state.use then state.showWindow = false end
-            game.interface.sendScriptEvent("__autosig__", "use", {})
-            game.interface.sendScriptEvent("__edgeTool__", "off", {sender = "autosig"})
+            game.interface.sendScriptEvent("__autosig2__", "use", {})
+            game.interface.sendScriptEvent("__edgeTool__", "off", {sender = "autosig2"})
         end)
         state.button:onClick(function()state.showWindow = not state.showWindow end)
     end
@@ -268,11 +268,11 @@ end
 
 local script = {
     handleEvent = function(src, id, name, param)
-        if (id == "__edgeTool__" and param.sender ~= "autosig") then
+        if (id == "__edgeTool__" and param.sender ~= "autosig2") then
             if (name == "off") then
                 state.use = false
             end
-        elseif (id == "__autosig__") then
+        elseif (id == "__autosig2__") then
             if (name == "distance") then
                 state.distance = state.distance + param.step
                 if state.distance < 10 then state.distance = 10 end
@@ -322,7 +322,7 @@ local script = {
                 local newSegement = proposal.addedSegments[1]
                 local object = proposal.edgeObjectsToAdd[1]
                 if (newSegement.type == 1 and object.category == 2) then
-                    game.interface.sendScriptEvent("__autosig__", "build",
+                    game.interface.sendScriptEvent("__autosig2__", "build",
                         {
                             nodes = {newSegement.comp.node0, newSegement.comp.node1},
                             edgeObjects = func.map(proposal.removedSegments[1].comp.objects, pipe.select(1)),

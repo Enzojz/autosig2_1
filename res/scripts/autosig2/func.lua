@@ -28,7 +28,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 local unpack = table.unpack
 local func = {}
 
-func.pi = require "autosig/pipe"
+func.pi = require "autosig2/pipe"
 
 function func.fold(ls, init, fun)
     return func.pi.fold(init, fun)(ls)
