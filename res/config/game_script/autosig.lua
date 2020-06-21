@@ -1,52 +1,20 @@
-local dump = require "luadump"
+-- local dump = require "luadump"
 local pipe = require "autosig/pipe"
 local func = require "autosig/func"
-local coor = require "autosig/coor"
-
-local defBridgeList = {"cement", "iron", "stone"}
-local sideList = {_("LEFT"), _("RIGHT"), _("BOTH")}
-local defSignalList = {
-    "railroad/signal_path_c",
-    "railroad/signal_path_c_one_way",
-    "railroad/signal_path_a",
-    "railroad/signal_path_a_one_way"
-}
 
 local state = {
     windows = {
         window = false,
-        bridge = false,
-        signal = false,
-        distance = false,
-        side = false
+        distance = false
     },
     button = false,
     use = false,
     useLabel = false,
-    bridge = 1,
-    signal = 1,
-    side = 2,
     distance = 500,
     showWindow = false,
-    signalList = defSignalList,
-    bridgeList = defBridgeList
 }
 
 local showWindow = function()
-    local vLayout = gui.boxLayout_create("autosig.window.vLayout", "VERTICAL")
-    state.windows.window = gui.window_create("autosig.window", _("TITLE"), vLayout)
-    
-    local sideLabel = gui.textView_create("autosig.side.text", _("SIGNAL_SIDE"), 200)
-    local sideValue = gui.textView_create("autosig.side.value", sideList[state.side])
-    local sideButton = gui.button_create("autosig.side.btn", sideValue)
-    local sideLayout = gui.boxLayout_create("autosig.side.layout", "HORIZONTAL")
-    local sideComp = gui.component_create("autosig.side", "")
-    sideComp:setLayout(sideLayout)
-    sideLayout:addItem(sideLabel)
-    sideLayout:addItem(sideButton)
-    state.windows.side = sideValue
-    
-    local distLabel = gui.textView_create("autosig.distance.lable.", _("SIGNAL_DISTANCE"))
     local distValue = gui.textView_create("autosig.distance.value", tostring(state.distance))
     local distAdd = gui.textView_create("autosig.distance.add.text", "+")
     local distSub = gui.textView_create("autosig.distance.sub.text", "-")
@@ -57,8 +25,7 @@ local showWindow = function()
     local distAddPlusButton = gui.button_create("autosig.distance.addp", distAddPlus)
     local distSubPlusButton = gui.button_create("autosig.distance.subp", distSubPlus)
     local distLayout = gui.boxLayout_create("autosig.distance.layout", "HORIZONTAL")
-    local distComp = gui.component_create("autosig.distance", "")
-    distComp:setLayout(distLayout)
+    
     distLayout:addItem(distSubPlusButton)
     distLayout:addItem(distSubButton)
     distLayout:addItem(distValue)
@@ -66,15 +33,12 @@ local showWindow = function()
     distLayout:addItem(distAddPlusButton)
     state.windows.distance = distValue
     
+    state.windows.window = gui.window_create("autosig.window", _("SIGNAL_DISTANCE"), distLayout)
+    
     distAddButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = 10}) end)
-    sideButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "side", {}) end)
     distAddPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = 50}) end)
     distSubButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = -10}) end)
     distSubPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig__", "distance", {step = -50}) end)
-    
-    vLayout:addItem(distLabel)
-    vLayout:addItem(distComp)
-    vLayout:addItem(sideComp)
     
     local mainView = game.gui.getContentRect("mainView")
     local mainMenuHeight = game.gui.getContentRect("mainMenuTopBar")[4] + game.gui.getContentRect("mainMenuBottomBar")[4]
@@ -85,10 +49,7 @@ local showWindow = function()
     state.windows.window:onClose(function()
         state.windows = {
             window = false,
-            bridge = false,
-            signal = false,
-            distance = false,
-            side = false
+            distance = false
         }
         state.showWindow = false
     end)
@@ -114,6 +75,32 @@ local createComponents = function()
         end)
         state.button:onClick(function()state.showWindow = not state.showWindow end)
     end
+end
+
+local findAllSignalPos = function(edgeId)
+    local tpn = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
+    local sections = func.fold(tpn.edges, pipe.new * {},
+        function(posList, sec)
+            local s = posList[#posList] and posList[#posList][2] or 0
+            local length = sec.geometry.length
+            return posList / {s, s + length, length}
+        end)
+    
+    local edgeLength = sections[#sections][2]
+    local signals = {}
+    for i, sec in ipairs(sections) do
+        local s, e, l = table.unpack(sec)
+        local sigF = api.engine.system.signalSystem.getSignal(api.type.EdgeId.new(edgeId, i - 1), false)
+        local sigR = api.engine.system.signalSystem.getSignal(api.type.EdgeId.new(edgeId, i - 1), true)
+        if sigF > 0 then
+            signals[sigF] = {pos = e, isLeft = true}
+        end
+        if sigR > 0 then
+            signals[sigR] = {pos = s, isLeft = false}
+        end
+    end
+    
+    return signals, edgeLength
 end
 
 local function build(param)
@@ -143,35 +130,35 @@ local function build(param)
     end
     if not newObject then return end
     
-    local tpn = api.engine.getComponent(edge.entity, api.type.ComponentType.TRANSPORT_NETWORK)
-    local sections = func.fold(tpn.edges, pipe.new * {},
-        function(posList, sec)
-            local s = posList[#posList] and posList[#posList][2] or 0
-            local length = sec.geometry.length
-            return posList / {s, s + length, length}
-        end)
-    
-    local signals = {}
-    for i, sec in ipairs(sections) do
-        local s, e, l = table.unpack(sec)
-        local sigF = api.engine.system.signalSystem.getSignal(api.type.EdgeId.new(edge.entity, i - 1), false)
-        local sigR = api.engine.system.signalSystem.getSignal(api.type.EdgeId.new(edge.entity, i - 1), true)
-        if sigF > 0 then
-            signals[sigF] = {pos = e, isBackward = false}
-        end
-        if sigR > 0 then
-            signals[sigR] = {pos = s, isBackward = true}
-        end
-    end
-    local totalLength = sections[#sections][2]
+    local signals, edgeLength = findAllSignalPos(edge.entity)
     
     local newSigInfo = signals[newObject]
     if not newSigInfo then return end
     
-    local edgeList = {func.with(edge, {isBackward = not newSigInfo.isBackward, length = totalLength, startPos = 0, endPos = totalLength})}
+    local edgeList = {
+        func.with(edge, {
+            isBackward = newSigInfo.isLeft,
+            length = edgeLength,
+            startPos = 0,
+            endPos = edgeLength
+        })
+    }
     
     local isSearchFinished = false
-    repeat
+    do
+        local terminateSig =
+            pipe.new
+            * func.values(signals)
+            * pipe.filter(function(sig) return newSigInfo.isLeft == sig.isLeft and (edgeList[1].isBackward and (sig.pos < newSigInfo.pos) or (sig.pos > newSigInfo.pos)) end)
+            * pipe.sort(edgeList[1].isBackward and function(l, r) return l.pos > r.pos end or function(l, r) return l.pos < r.pos end)
+
+        if #terminateSig > 0 then
+            isSearchFinished = true
+            edgeList[1].endPos = edgeList[1].isBackward and edgeList[1].length - terminateSig[1].pos or terminateSig[1].pos
+        end
+    end
+    
+    while not isSearchFinished do
         local lastEdge = edgeList[#edgeList]
         local node = lastEdge.isBackward and lastEdge.comp.node0 or lastEdge.comp.node1
         local nextEdges = {}
@@ -183,23 +170,43 @@ local function build(param)
         if #nextEdges == 1 then
             local nextEdge = nextEdges[1]
             local comp = api.engine.getComponent(nextEdge, api.type.ComponentType.BASE_EDGE)
-            local length = coor.new(comp.tangent0):length()
-            table.insert(edgeList, {
-                entity = nextEdge,
-                comp = comp,
-                isBackward = comp.node1 == node,
-                startPos = edgeList[#edgeList].endPos,
-                endPos = edgeList[#edgeList].endPos + length,
-                length = length
-            })
+            local allSignals, length = findAllSignalPos(nextEdge)
+            local isBackward = comp.node1 == node
+            
+            for _, signal in ipairs(func.sort(func.values(allSignals), isBackward and function(l, r) return l.pos > r.pos end or function(l, r) return l.pos < r.pos end)) do
+                if (signal.isLeft == param.left and isBackward == edgeList[1].isBackward) or
+                    (signal.isLeft ~= param.left and isBackward ~= edgeList[1].isBackward)
+                then
+                    isSearchFinished = true
+                    table.insert(edgeList, {
+                        entity = nextEdge,
+                        comp = comp,
+                        isBackward = isBackward,
+                        startPos = edgeList[#edgeList].endPos,
+                        endPos = edgeList[#edgeList].endPos + (isBackward and length - signal.pos or signal.pos),
+                        length = length
+                    })
+                    break
+                end
+            end
+            
+            if not isSearchFinished then
+                table.insert(edgeList, {
+                    entity = nextEdge,
+                    comp = comp,
+                    isBackward = isBackward,
+                    startPos = edgeList[#edgeList].endPos,
+                    endPos = edgeList[#edgeList].endPos + length,
+                    length = length
+                })
+            end
         else
             isSearchFinished = true
         end
-    until isSearchFinished
-    
+    end
     
     local allPos = {}
-    for i = newSigInfo.pos + state.distance, totalLength, state.distance do
+    for i = (newSigInfo.isLeft and (edgeList[1].length - newSigInfo.pos) or newSigInfo.pos) + state.distance, edgeList[#edgeList].endPos, state.distance do
         table.insert(allPos, i)
     end
     
@@ -208,7 +215,7 @@ local function build(param)
     end
     
     local proposal = api.type.SimpleProposal.new()
-
+    
     for id, edge in ipairs(func.filter(edgeList, function(e) return #e.allPos > 0 end)) do
         local track = api.type.SegmentAndEntity.new()
         local comp = api.engine.getComponent(edge.entity, api.type.ComponentType.BASE_EDGE)
@@ -226,23 +233,23 @@ local function build(param)
         track.comp.type = comp.type
         track.comp.typeIndex = comp.typeIndex
         
-        
         track.type = 1
         track.trackEdge.trackType = trackEdge.trackType
         track.trackEdge.catenary = trackEdge.catenary
-        local newSigList = {}
+        local newSigList = comp.objects
         
         for n, pos in ipairs(edge.allPos) do
             local rPos = (pos - edge.startPos) / edge.length
             if edge.isBackward then rPos = 1 - rPos end
             local sig = api.type.SimpleStreetProposal.EdgeObject.new()
+            local left = param.left
+            if edgeList[1].isBackward ~= edge.isBackward then left = not left end
             sig.edgeEntity = -id
             sig.param = rPos
             sig.oneWay = param.oneWay
-            sig.left = param.left
+            sig.left = left
             sig.model = param.model
             sig.playerEntity = api.engine.util.getPlayer()
-            
             
             proposal.streetProposal.edgeObjectsToAdd[#proposal.streetProposal.edgeObjectsToAdd + 1] = sig
             table.insert(newSigList, {-#proposal.streetProposal.edgeObjectsToAdd, 2})
@@ -250,12 +257,12 @@ local function build(param)
         
         track.comp.objects = newSigList
         
-        proposal.streetProposal.edgesToAdd[e] = track
-        proposal.streetProposal.edgesToRemove[e] = edge.entity
+        proposal.streetProposal.edgesToAdd[id] = track
+        proposal.streetProposal.edgesToRemove[id] = edge.entity
     end
-
-    dump()(proposal)
-    api.cmd.sendCommand(api.cmd.make.buildProposal(proposal, nil, false), function(x)dump()(x) end)
+    
+    local cmd = api.cmd.make.buildProposal(proposal, nil, false)
+    api.cmd.sendCommand(cmd, function(_) end)
 
 end
 
@@ -269,8 +276,6 @@ local script = {
             if (name == "distance") then
                 state.distance = state.distance + param.step
                 if state.distance < 10 then state.distance = 10 end
-            elseif (name == "side") then
-                state.side = state.side < #sideList and state.side + 1 or 1
             elseif (name == "use") then
                 state.use = not state.use
             elseif (name == "build") then
@@ -297,7 +302,6 @@ local script = {
         end
         if state.windows.window then
             state.windows.distance:setText(tostring(state.distance))
-            state.windows.side:setText(sideList[state.side])
         end
         state.useLabel:setText(state.use and _("ON") or _("OFF"))
     end,
@@ -316,14 +320,18 @@ local script = {
                 proposal.edgeObjectsToAdd and #proposal.edgeObjectsToAdd == 1
             then
                 local newSegement = proposal.addedSegments[1]
-                local nodes = {newSegement.comp.node0, newSegement.comp.node1}
-                local edgeObjects = func.map(proposal.removedSegments[1].comp.objects, pipe.select(1))
                 local object = proposal.edgeObjectsToAdd[1]
-                local model = api.res.modelRep.getName(object.modelInstance.modelId)
-                local left = object.left
-                local oneWay = object.oneWay
-                dump()(proposal)
-                game.interface.sendScriptEvent("__autosig__", "build", {nodes = nodes, edgeObjects = edgeObjects, model = model, left = left, oneWay = oneWay})
+                if (newSegement.type == 1 and object.category == 2) then
+                    game.interface.sendScriptEvent("__autosig__", "build",
+                        {
+                            nodes = {newSegement.comp.node0, newSegement.comp.node1},
+                            edgeObjects = func.map(proposal.removedSegments[1].comp.objects, pipe.select(1)),
+                            model = api.res.modelRep.getName(object.modelInstance.modelId),
+                            left = object.left,
+                            oneWay = object.oneWay
+                        }
+                )
+                end
             end
         end
     end

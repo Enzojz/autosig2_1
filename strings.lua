@@ -1,40 +1,19 @@
-local descEN = [[This mod automatizes the placing of signals upon the creating of tracks.
-
-Due to the limit of API open for modding, this mod gets following limitations:
-- Only recgonizes vanilla track types, if the track type choosen on creating is a mod track, it will be converted as "High-Speed" tracks. You need to convert them after construction.
-- The bridges are limited on vanilla bridges, since on information about the bridge on created tracks are accessible.
-- The tunnel entry will always be the vanilia tunnel entry, you can refine it after the construction.
-- The crossing are not recognized.
-- If the new track crosses or connects with existing tracks, the mod will not work.
-
-So, it's a very basic mod, but I will try to contact for improve it.
+local descEN = [[This mod automatizes the placing of signals
 
 Usage:
 1. With mod loaded, there is an "AutoSig" label at the bottom bar of the screen, after it the state "On" or "Off" is indicated.
 2. Toggle to state to "On" to enable the function
-3. Click on the "AutoSig" open the option window.
-4. Lay tracks direction, the signals will be automatically added at desired distance.
+3. Set the "Signal Distance" to desired value 
+3. Place a signal on the track, the mod will automatically create successive signals in the same directiom
+4. The condition of creating is either of following
+   i. in front of a switch or crossing
+   ii. in front of a signal of the same direction
 
-* This mod can be safely removed from gamesaves.
-* Special thansk to lfri, the developper from Urand Games for techincal support to this mod. 
-
-Stay strong Italy and Iran!
-Stay strong and united before COVID-19, the human beings around the world!
+Stay strong and united before COVID-19!
 
 Changelog:
-1.6
-- Fixed a crash case
-1.5
-- Revert of 1.3 changes becasue of more problem introduced with this functional fix.
-1.4
-- Added support to mod bridge based on Zero Height Bridge
-1.3
-- Fixed no signals generated when the new tracks crosses existing tracks
-1.2
-- Fixed wrong starting point bug
-- Fixed some crash bug
-1.1
-- Support for mod signals (experimental)
+2.0
+- Rewrite based on new API functions
 ]]
 
 local descFR = [[Ce mod automatise le placement des signalisations lors la pose de voie.
@@ -75,27 +54,14 @@ Changelog:
 - Support de signalisation 3e partie (expérimental)
 ]]
 
-local descCN = [[该模组能够自动在新放置的轨道上添加信号机
-
-由于游戏开放API的限制，目前该模组有以下局限：
--只能识别原生的两种轨道类型，如果铺设的是第三方轨道，该模组会将其转成高速轨道。铺设后需要手动转换轨道类型。
--因为游戏没有提供任何铺设中的桥梁信息，所以仅支持原生桥梁
--同样只支持原生隧道口，不过可以在铺设后自己改
--不认识平交道口
-
-所以这个模组的功能不多，不过我会尽力联系UG开放更多的信息给模组，这样功能就完整了。
+local descCN = [[该模组能够自动在轨道上添加信号机
 
 使用：
 1.若模组开启，屏幕最下方的信息条中显示“自动放置信号机”的标签，后面有标签表示该功能是否开启。
 2.点击“开启”或者“关闭”切换状态
-3.点击“自动放置信号机”可以打开参数菜单
-4.直接通过铺设轨道放置信号机，在铺设完后信号机会按照设定的间距放置。
+3.点击“自动放置信号机”设置信号机间距
+4.
 
-* 该模组可以安全地从存档中移除
-* 特别感谢UG的lfri对本模组的技术支持
-
-意大利加油、伊朗加油、韩国加油！
-愿全人类能够团结一致，消灭COVID-19！
 
 更新记录：
 1.6
