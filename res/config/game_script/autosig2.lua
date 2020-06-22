@@ -3,77 +3,90 @@ local pipe = require "autosig2/pipe"
 local func = require "autosig2/func"
 
 local state = {
-    windows = {
-        window = false,
-        distance = false
-    },
-    button = false,
-    use = false,
-    useLabel = false,
+    window = false,
     distance = 500,
-    showWindow = false,
+    use = false,
+    fn = {}
 }
 
-local showWindow = function()
-    local distValue = gui.textView_create("autosig2.distance.value", tostring(state.distance))
-    local distAdd = gui.textView_create("autosig2.distance.add.text", "+")
-    local distSub = gui.textView_create("autosig2.distance.sub.text", "-")
-    local distAddPlus = gui.textView_create("autosig2.distance.addp.text", "++")
-    local distSubPlus = gui.textView_create("autosig2.distance.subp.text", "--")
-    local distAddButton = gui.button_create("autosig2.distance.add", distAdd)
-    local distSubButton = gui.button_create("autosig2.distance.sub", distSub)
-    local distAddPlusButton = gui.button_create("autosig2.distance.addp", distAddPlus)
-    local distSubPlusButton = gui.button_create("autosig2.distance.subp", distSubPlus)
-    local distLayout = gui.boxLayout_create("autosig2.distance.layout", "HORIZONTAL")
-    
-    distLayout:addItem(distSubPlusButton)
-    distLayout:addItem(distSubButton)
-    distLayout:addItem(distValue)
-    distLayout:addItem(distAddButton)
-    distLayout:addItem(distAddPlusButton)
-    state.windows.distance = distValue
-    
-    state.windows.window = gui.window_create("autosig2.window", _("SIGNAL_DISTANCE"), distLayout)
-    
-    distAddButton:onClick(function()game.interface.sendScriptEvent("__autosig2__", "distance", {step = 10}) end)
-    distAddPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig2__", "distance", {step = 50}) end)
-    distSubButton:onClick(function()game.interface.sendScriptEvent("__autosig2__", "distance", {step = -10}) end)
-    distSubPlusButton:onClick(function()game.interface.sendScriptEvent("__autosig2__", "distance", {step = -50}) end)
-    
-    local mainView = game.gui.getContentRect("mainView")
-    local mainMenuHeight = game.gui.getContentRect("mainMenuTopBar")[4] + game.gui.getContentRect("mainMenuBottomBar")[4]
-    local buttonX = game.gui.getContentRect("autosig2.button")[1]
-    local size = game.gui.calcMinimumSize(state.windows.window.id)
-    local y = mainView[4] - size[2] - mainMenuHeight
-    
-    state.windows.window:onClose(function()
-        state.windows = {
-            window = false,
-            distance = false
-        }
-        state.showWindow = false
-    end)
-    game.gui.window_setPosition(state.windows.window.id, buttonX, y)
+local setWidth = function(ctrl, width)
+    local tRect = ctrl:getContentRect()
+    local tSize = api.gui.util.Size.new()
+    tSize.h = tRect.h
+    tSize.w = width
+    ctrl:setGravity(-1, -1)
+    ctrl:setMinimumSize(tSize)
+end
+
+local setSpacingText = function(spacing)
+    return string.format("%d%s", spacing, _("METER"))
+end
+
+local createWindow = function()
+    if not state.window then
+        local spacingValue = api.gui.comp.TextView.new(setSpacingText(state.distance))
+        local spacingSlider = api.gui.comp.Slider.new(true)
+        
+        spacingSlider:setStep(10)
+        spacingSlider:setMinimum(1)
+        spacingSlider:setMaximum(200)
+        spacingSlider:setValue(state.distance * 0.1, false)
+        
+        setWidth(spacingSlider, 200)
+        
+        local comp = api.gui.comp.Component.new("")
+        local layout = api.gui.layout.BoxLayout.new("HORIZONTAL")
+        layout:setId("autosig2.layout")
+        comp:setLayout(layout)
+        
+        state.window = api.gui.comp.Window.new(_("SIGNAL_DISTANCE"), comp)
+        state.window:setId("autosig2.window")
+        
+        layout:addItem(spacingSlider)
+        layout:addItem(spacingValue)
+        
+        spacingSlider:onValueChanged(function(value)
+            table.insert(state.fn, function()
+                spacingValue:setText(setSpacingText(value * 10))
+                game.interface.sendScriptEvent("__autosig2__", "distance", {distance = value * 10})
+            end)
+        end)
+        
+        state.window:onClose(function()state.window:setVisible(false, false) end)
+        
+        local mainView = api.gui.util.getById("mainView"):getContentRect().h
+        local mainMenuHeight = api.gui.util.getById("mainMenuTopBar"):getContentRect().h + api.gui.util.getById("mainMenuBottomBar"):getContentRect().h
+        local x = api.gui.util.getById("autosig2.button"):getContentRect().x
+        local y = mainView - mainMenuHeight - state.window:calcMinimumSize().h
+
+        game.gui.window_setPosition("autosig2.window", x, y)
+    end
 end
 
 local createComponents = function()
-    if (not state.button) then
+    if (not state.useLabel) then
         local label = gui.textView_create("autosig2.lable", _("AUTOSIG"))
-        state.button = gui.button_create("autosig2.button", label)
+        local button = gui.button_create("autosig2.button", label)
         
         state.useLabel = gui.textView_create("autosig2.use.text", state.use and _("ON") or _("OFF"))
-        state.use = gui.button_create("autosig2.use", state.useLabel)
+        local use = gui.button_create("autosig2.use", state.useLabel)
         
         game.gui.boxLayout_addItem("gameInfo.layout", gui.component_create("gameInfo.autosig2.sep", "VerticalLine").id)
         game.gui.boxLayout_addItem("gameInfo.layout", "autosig2.button")
         game.gui.boxLayout_addItem("gameInfo.layout", "autosig2.use")
         
-        state.use:onClick(function()
-            if state.use then state.showWindow = false end
+        use:onClick(function()
             game.interface.sendScriptEvent("__autosig2__", "use", {})
             game.interface.sendScriptEvent("__edgeTool__", "off", {sender = "autosig2"})
         end)
-        state.button:onClick(function()state.showWindow = not state.showWindow end)
+        
+        button:onClick(function() 
+            if state.window and state.use then
+                state.window:setVisible(not state.window:isVisible(), false)
+            elseif not state.window and state.use then
+                table.insert(state.fn, createWindow)
+            end
+        end)
     end
 end
 
@@ -274,7 +287,7 @@ local script = {
             end
         elseif (id == "__autosig2__") then
             if (name == "distance") then
-                state.distance = state.distance + param.step
+                state.distance = param.distance
                 if state.distance < 10 then state.distance = 10 end
             elseif (name == "use") then
                 state.use = not state.use
@@ -290,19 +303,17 @@ local script = {
         if data then
             state.distance = data.distance
             state.use = data.use
-            state.side = data.side
         end
     end,
     guiUpdate = function()
         createComponents()
-        if (state.showWindow and not state.windows.window) then
-            showWindow()
-        elseif (not state.showWindow and state.windows.window) then
-            state.windows.window:close()
+        if not state.use and state.window and state.window:isVisible() then
+            state.window:close()
         end
-        if state.windows.window then
-            state.windows.distance:setText(tostring(state.distance))
-        end
+        
+        for _, fn in ipairs(state.fn) do fn() end
+        state.fn = {}
+        
         state.useLabel:setText(state.use and _("ON") or _("OFF"))
     end,
     guiHandleEvent = function(id, name, param)

@@ -1,4 +1,4 @@
-local descEN = [[This mod automatizes the placing of signals
+local descEN = [[This mod automatizes the placing of signals.
 
 Usage:
 1. With mod loaded, there is an "AutoSig" label at the bottom bar of the screen, after it the state "On" or "Off" is indicated.
@@ -8,6 +8,8 @@ Usage:
 5. The condition of creating is either of following
    i. in front of a switch or crossing
    ii. in front of a signal of the same direction
+
+* This mod can be safely removed from gamesaves.
 
 Stay strong and united before COVID-19!
 
@@ -27,7 +29,9 @@ Mode d’emploi :
    i. jusqu'à une aiguille ou jonction
    ii. jusqu'à l'autre signale de la même sens
 
-Restons prudents! #COVID-19#
+* Ce mod pourrait être désactivé sans souci.
+
+Restons prudents! #COVID-19
 
 Changelog:
 2.0
@@ -58,6 +62,8 @@ local descTC = [[該模組能夠自動在軌道上連續添加號誌機
   i. 遇到另外一台同一方向的號誌機
   ii. 遇到一個道岔
 
+* 該模組可以安全地從存檔中移除
+
 更新記錄：
 2.0
 新API支持]]
@@ -67,37 +73,41 @@ local descTC = [[該模組能夠自動在軌道上連續添加號誌機
 function data()
     return {
         en = {
-            MOD_NAME = "Auto.Sig",
+            MOD_NAME = "Auto.Sig²",
             MOD_DESC = descEN,
-            SIGNAL_DISTANCE = "Signal Distance (m)",
+            SIGNAL_DISTANCE = "Signal Spacing",
             AUTOSIG = "AutoSig",
             ON = "On",
-            OFF = "Off"
+            OFF = "Off",
+            METER = "m"
         },
         fr = {
-            MOD_NAME = "Auto.Sig",
+            MOD_NAME = "Auto.Sig²",
             MOD_DESC = descFR,
             TITLE = "Auto.Sig",
-            SIGNAL_DISTANCE = "Écart (m)",
+            SIGNAL_DISTANCE = "Distance entre deux signaux",
             AUTOSIG = "AutoSig",
             OFF = "Désactivé",
-            ON = "Activé"
+            ON = "Activé",
+            METER = "m"
         },
         zh_CN = {
-            MOD_NAME = "自动放置信号机",
+            MOD_NAME = "自动放置信号机 2.0",
             MOD_DESC = descCN,
-            SIGNAL_DISTANCE = "信号机间距 (米)",
+            SIGNAL_DISTANCE = "信号机间距",
             AUTOSIG = "自动放置信号机",
             ON = "开启",
-            OFF = "关闭"
+            OFF = "关闭",
+            METER = "米"
         },
         zh_TW = {
-            MOD_NAME = "自動放置號誌機",
+            MOD_NAME = "自動放置號誌機 2.0",
             MOD_DESC = descTC,
-            SIGNAL_DISTANCE = "號誌機間距 (米)",
+            SIGNAL_DISTANCE = "號誌機間距",
             AUTOSIG = "自動放置號誌機",
             ON = "開啟",
-            OFF = "關閉"
+            OFF = "關閉",
+            METER = "公尺"
         }
 
 
