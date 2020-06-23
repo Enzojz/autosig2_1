@@ -8,14 +8,17 @@ Usage:
 5. The condition of creating is either of following
    i. in front of a switch or crossing
    ii. in front of a signal of the same direction
+   iii. in front of a station/depot or other tracks where signals can not be placed
 
 * This mod can be safely removed from gamesaves.
 
 Stay strong and united before COVID-19!
 
 Changelog:
-2.0
-- Rewrite based on new API functions
+1.8
+- Bugfix for signals created into construction.
+1.7
+- Rewrite based on new API functions.
 ]]
 
 local descFR = [[Ce mod automatise le placement des signalisations.
@@ -28,14 +31,17 @@ Mode d’emploi :
 5. Condition de l'arrêt de création est :
    i. jusqu'à une aiguille ou jonction
    ii. jusqu'à l'autre signale de la même sens
+   iii. jusqu'à une construction comme gare ou dêpot
 
 * Ce mod pourrait être désactivé sans souci.
 
 Restons prudents! #COVID-19
 
 Changelog:
-2.0
-Récriture avec la nouvelle API
+1.8
+- Correction du bug de création des signaux dans les constructions.
+1.7
+- Récriture avec la nouvelle API.
 ]]
 
 local descCN = [[该模组能够自动在轨道上连续添加信号机
@@ -47,10 +53,13 @@ local descCN = [[该模组能够自动在轨道上连续添加信号机
 4.在轨道上放置一台信号机，模组会在信号机前方以设定距离连续放置新的信号机直到:
   i. 遇到另外一台同一方向的信号机
   ii. 遇到一个道岔
+  iii. 遇到车站、车辆段等建筑物
 
 更新记录：
-2.0
-新API支持]]
+1.8
+- 修复了信号机建到车站内的错误。
+1.7
+- 以新版API重写了MOD。]]
 
 local descTC = [[該模組能夠自動在軌道上連續添加號誌機
 
@@ -61,12 +70,15 @@ local descTC = [[該模組能夠自動在軌道上連續添加號誌機
 4.在軌道上放置一台號誌機，模組會在號誌機前方以設定距離連續放置新的號誌機直到:
   i. 遇到另外一台同一方向的號誌機
   ii. 遇到一個道岔
+  iii. 遇到車站、車輛段等建築物
 
 * 該模組可以安全地從存檔中移除
 
 更新記錄：
-2.0
-新API支持]]
+1.8
+- 修復了信號機建到車站內的錯誤。
+1.7
+- 以新版API重寫了MOD。]]
 
 
 

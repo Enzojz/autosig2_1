@@ -58,7 +58,7 @@ local createWindow = function()
         local mainMenuHeight = api.gui.util.getById("mainMenuTopBar"):getContentRect().h + api.gui.util.getById("mainMenuBottomBar"):getContentRect().h
         local x = api.gui.util.getById("autosig2.button"):getContentRect().x
         local y = mainView - mainMenuHeight - state.window:calcMinimumSize().h
-
+        
         game.gui.window_setPosition("autosig2.window", x, y)
     end
 end
@@ -80,7 +80,7 @@ local createComponents = function()
             game.interface.sendScriptEvent("__edgeTool__", "off", {sender = "autosig2"})
         end)
         
-        button:onClick(function() 
+        button:onClick(function()
             if state.window and state.use then
                 state.window:setVisible(not state.window:isVisible(), false)
             elseif not state.window and state.use then
@@ -164,57 +164,64 @@ local function build(param)
             * func.values(signals)
             * pipe.filter(function(sig) return newSigInfo.isLeft == sig.isLeft and (edgeList[1].isBackward and (sig.pos < newSigInfo.pos) or (sig.pos > newSigInfo.pos)) end)
             * pipe.sort(edgeList[1].isBackward and function(l, r) return l.pos > r.pos end or function(l, r) return l.pos < r.pos end)
-
+        
         if #terminateSig > 0 then
             isSearchFinished = true
             edgeList[1].endPos = edgeList[1].isBackward and edgeList[1].length - terminateSig[1].pos or terminateSig[1].pos
         end
     end
     
+    local frozenNodes = api.engine.system.streetConnectorSystem.getNode2StreetConnectorMap()
     while not isSearchFinished do
         local lastEdge = edgeList[#edgeList]
         local node = lastEdge.isBackward and lastEdge.comp.node0 or lastEdge.comp.node1
-        local nextEdges = {}
-        for _, e in ipairs(map[node]) do
-            if e ~= lastEdge.entity then
-                table.insert(nextEdges, e)
-            end
-        end
-        if #nextEdges == 1 then
-            local nextEdge = nextEdges[1]
-            local comp = api.engine.getComponent(nextEdge, api.type.ComponentType.BASE_EDGE)
-            local allSignals, length = findAllSignalPos(nextEdge)
-            local isBackward = comp.node1 == node
+        
+        if frozenNodes[node] then
+            isSearchFinished = true
+        else
             
-            for _, signal in ipairs(func.sort(func.values(allSignals), isBackward and function(l, r) return l.pos > r.pos end or function(l, r) return l.pos < r.pos end)) do
-                if (signal.isLeft == param.left and isBackward == edgeList[1].isBackward) or
-                    (signal.isLeft ~= param.left and isBackward ~= edgeList[1].isBackward)
-                then
-                    isSearchFinished = true
+            local nextEdges = {}
+            for _, e in ipairs(map[node]) do
+                if e ~= lastEdge.entity then
+                    table.insert(nextEdges, e)
+                end
+            end
+            if #nextEdges == 1 then
+                local nextEdge = nextEdges[1]
+                local comp = api.engine.getComponent(nextEdge, api.type.ComponentType.BASE_EDGE)
+                local allSignals, length = findAllSignalPos(nextEdge)
+                local isBackward = comp.node1 == node
+                
+                for _, signal in ipairs(func.sort(func.values(allSignals), isBackward and function(l, r) return l.pos > r.pos end or function(l, r) return l.pos < r.pos end)) do
+                    if (signal.isLeft == param.left and isBackward == edgeList[1].isBackward) or
+                        (signal.isLeft ~= param.left and isBackward ~= edgeList[1].isBackward)
+                    then
+                        isSearchFinished = true
+                        table.insert(edgeList, {
+                            entity = nextEdge,
+                            comp = comp,
+                            isBackward = isBackward,
+                            startPos = edgeList[#edgeList].endPos,
+                            endPos = edgeList[#edgeList].endPos + (isBackward and length - signal.pos or signal.pos),
+                            length = length
+                        })
+                        break
+                    end
+                end
+                
+                if not isSearchFinished then
                     table.insert(edgeList, {
                         entity = nextEdge,
                         comp = comp,
                         isBackward = isBackward,
                         startPos = edgeList[#edgeList].endPos,
-                        endPos = edgeList[#edgeList].endPos + (isBackward and length - signal.pos or signal.pos),
+                        endPos = edgeList[#edgeList].endPos + length,
                         length = length
                     })
-                    break
                 end
+            else
+                isSearchFinished = true
             end
-            
-            if not isSearchFinished then
-                table.insert(edgeList, {
-                    entity = nextEdge,
-                    comp = comp,
-                    isBackward = isBackward,
-                    startPos = edgeList[#edgeList].endPos,
-                    endPos = edgeList[#edgeList].endPos + length,
-                    length = length
-                })
-            end
-        else
-            isSearchFinished = true
         end
     end
     
