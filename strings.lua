@@ -1,7 +1,7 @@
 local descEN = [[This mod automatizes the placing of signals.
 
 Usage:
-1. With mod loaded, there is an "AutoSig" label at the bottom bar of the screen, after it the state "On" or "Off" is indicated.
+1. With mod loaded, there is an "AutoSig" option in the signal construction menu (show after placing the cursor over the track).
 2. Toggle to state to "On" to enable the function
 3. Set the "Signal Distance" to desired value 
 4. Place a signal on the track, the mod will automatically create successive signals in the same directiom
@@ -15,6 +15,9 @@ Usage:
 Stay strong and united before COVID-19!
 
 Changelog:
+1.9
+- Intergration of AutoSig with into the construction menu
+- Live with auto paralell tracks mod.
 1.8
 - Bugfix for signals created into construction.
 1.7
@@ -24,7 +27,7 @@ Changelog:
 local descFR = [[Ce mod automatise le placement des signalisations.
 
 Mode d’emploi :
-1. Avec ce mod chargé, il aura une libéllé "AutoSig" en bas d'écran, puis "Activé" ou "Désactivé" pour indiquer son état
+1. Avec ce mod chargé, il aura l'option "AutoSig" dans le menu de construction des signaux (affiché après d'avoir poser le curseur sur la voie)
 2. Cliquez sur l'indicateur, quand il affiche "Activé" c'est activé.
 3. Cliquez sur "AutoSig" pour définir l'écart entre les signaux.
 4. Pose une signale sur la voie, le mod automatise la création des signaux successives dans même la sens.
@@ -38,6 +41,9 @@ Mode d’emploi :
 Restons prudents! #COVID-19
 
 Changelog:
+1.9
+- Intrégration dans le menu de construction
+- Fonctionne dans le même temps avec mod Voies ferrées parallèles.
 1.8
 - Correction du bug de création des signaux dans les constructions.
 1.7
@@ -56,6 +62,9 @@ local descCN = [[该模组能够自动在轨道上连续添加信号机
   iii. 遇到车站、车辆段等建筑物
 
 更新记录：
+1.9
+- 将选项集成到了建造菜单中
+- 支持同时开启平行轨道模组
 1.8
 - 修复了信号机建到车站内的错误。
 1.7
@@ -75,6 +84,9 @@ local descTC = [[該模組能夠自動在軌道上連續添加號誌機
 * 該模組可以安全地從存檔中移除
 
 更新記錄：
+1.9
+- 將選項集成到了建造功能表中
+- 支援同時開啟平行軌道模組
 1.8
 - 修復了信號機建到車站內的錯誤。
 1.7

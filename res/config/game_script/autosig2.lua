@@ -3,47 +3,65 @@ local pipe = require "autosig2/pipe"
 local func = require "autosig2/func"
 
 local state = {
-    window = false,
     distance = 500,
     use = false,
     fn = {}
 }
-
-local setWidth = function(ctrl, width)
-    local tRect = ctrl:getContentRect()
-    local tSize = api.gui.util.Size.new()
-    tSize.h = tRect.h
-    tSize.w = width
-    ctrl:setGravity(-1, -1)
-    ctrl:setMinimumSize(tSize)
-end
 
 local setSpacingText = function(spacing)
     return string.format("%d%s", spacing, _("METER"))
 end
 
 local createWindow = function()
-    if not state.window then
+    if not api.gui.util.getById("autosig2.use") then
+        local menu = api.gui.util.getById("menu.construction.rail.settings")
+        local menuLayout = menu:getLayout()
+        
+        local useComp = api.gui.comp.Component.new("ParamsListComp::ButtonParam")
+        local useLayout = api.gui.layout.BoxLayout.new("VERTICAL")
+        useComp:setLayout(useLayout)
+        useComp:setId("autosig2.use")
+        
+        local use = api.gui.comp.TextView.new(_("AUTOSIG"))
+        
+        local useButtonComp = api.gui.comp.ToggleButtonGroup.new(0, 0, false)
+        local useNo = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(_("NO")))
+        local useYes = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(_("YES")))
+        useButtonComp:setName("ToggleButtonGroup")
+        useButtonComp:add(useNo)
+        useButtonComp:add(useYes)
+        
+        useLayout:addItem(use)
+        useLayout:addItem(useButtonComp)
+        
+        local spacingComp = api.gui.comp.Component.new("ParamsListComp::SliderParam")
+        local spacingLayout = api.gui.layout.BoxLayout.new("VERTICAL")
+        spacingLayout:setName("ParamsListComp::SliderParam::Layout")
+        
+        spacingComp:setLayout(spacingLayout)
+        spacingComp:setId("autosig2.spacing")
+        
+        local spacingText = api.gui.comp.TextView.new(_("SIGNAL_DISTANCE"))
         local spacingValue = api.gui.comp.TextView.new(setSpacingText(state.distance))
         local spacingSlider = api.gui.comp.Slider.new(true)
+        local spacingSliderLayout = api.gui.layout.BoxLayout.new("HORIZONTAL")
+        
+        spacingValue:setName("ParamsListComp::SliderParam::SliderLabel")
+        spacingValue:setId("autosig2.text")
+        spacingSlider:setId("autosig2.slider")
         
         spacingSlider:setStep(10)
         spacingSlider:setMinimum(1)
         spacingSlider:setMaximum(200)
         spacingSlider:setValue(state.distance * 0.1, false)
         
-        setWidth(spacingSlider, 200)
+        spacingSliderLayout:addItem(spacingSlider)
+        spacingSliderLayout:addItem(spacingValue)
+        spacingLayout:addItem(spacingText)
+        spacingLayout:addItem(spacingSliderLayout)
         
-        local comp = api.gui.comp.Component.new("")
-        local layout = api.gui.layout.BoxLayout.new("HORIZONTAL")
-        layout:setId("autosig2.layout")
-        comp:setLayout(layout)
-        
-        state.window = api.gui.comp.Window.new(_("SIGNAL_DISTANCE"), comp)
-        state.window:setId("autosig2.window")
-        
-        layout:addItem(spacingSlider)
-        layout:addItem(spacingValue)
+        menuLayout:addItem(useComp)
+        menuLayout:addItem(spacingComp)
         
         spacingSlider:onValueChanged(function(value)
             table.insert(state.fn, function()
@@ -52,41 +70,22 @@ local createWindow = function()
             end)
         end)
         
-        state.window:onClose(function()state.window:setVisible(false, false) end)
-        
-        local mainView = api.gui.util.getById("mainView"):getContentRect().h
-        local mainMenuHeight = api.gui.util.getById("mainMenuTopBar"):getContentRect().h + api.gui.util.getById("mainMenuBottomBar"):getContentRect().h
-        local x = api.gui.util.getById("autosig2.button"):getContentRect().x
-        local y = mainView - mainMenuHeight - state.window:calcMinimumSize().h
-        
-        game.gui.window_setPosition("autosig2.window", x, y)
-    end
-end
-
-local createComponents = function()
-    if (not state.useLabel) then
-        local label = gui.textView_create("autosig2.lable", _("AUTOSIG"))
-        local button = gui.button_create("autosig2.button", label)
-        
-        state.useLabel = gui.textView_create("autosig2.use.text", state.use and _("ON") or _("OFF"))
-        local use = gui.button_create("autosig2.use", state.useLabel)
-        
-        game.gui.boxLayout_addItem("gameInfo.layout", gui.component_create("gameInfo.autosig2.sep", "VerticalLine").id)
-        game.gui.boxLayout_addItem("gameInfo.layout", "autosig2.button")
-        game.gui.boxLayout_addItem("gameInfo.layout", "autosig2.use")
-        
-        use:onClick(function()
-            game.interface.sendScriptEvent("__autosig2__", "use", {})
-            game.interface.sendScriptEvent("__edgeTool__", "off", {sender = "autosig2"})
+        useNo:onToggle(function()
+            table.insert(state.fn, function()
+                game.interface.sendScriptEvent("__autosig2__", "use", {use = false})
+                spacingComp:setVisible(false, false)
+            end)
         end)
         
-        button:onClick(function()
-            if state.window and state.use then
-                state.window:setVisible(not state.window:isVisible(), false)
-            elseif not state.window and state.use then
-                table.insert(state.fn, createWindow)
-            end
+        useYes:onToggle(function()
+            table.insert(state.fn, function()
+                game.interface.sendScriptEvent("__autosig2__", "use", {use = true})
+                game.interface.sendScriptEvent("__edgeTool__", "off", {sender = "autosig2"})
+                spacingComp:setVisible(true, false)
+            end)
         end)
+        
+        if state.use then useYes:setSelected(true, true) else useNo:setSelected(true, true) end
     end
 end
 
@@ -290,14 +289,16 @@ local script = {
     handleEvent = function(src, id, name, param)
         if (id == "__edgeTool__" and param.sender ~= "autosig2") then
             if (name == "off") then
-                state.use = false
+                if (param.sender ~= "ptracks") then
+                    state.use = false
+                end
             end
         elseif (id == "__autosig2__") then
             if (name == "distance") then
                 state.distance = param.distance
                 if state.distance < 10 then state.distance = 10 end
             elseif (name == "use") then
-                state.use = not state.use
+                state.use = param.use
             elseif (name == "build") then
                 build(param)
             end
@@ -313,18 +314,11 @@ local script = {
         end
     end,
     guiUpdate = function()
-        createComponents()
-        if not state.use and state.window and state.window:isVisible() then
-            state.window:close()
-        end
-        
         for _, fn in ipairs(state.fn) do fn() end
         state.fn = {}
-        
-        state.useLabel:setText(state.use and _("ON") or _("OFF"))
     end,
     guiHandleEvent = function(id, name, param)
-        if state.use and name == "builder.apply" then
+        if id == "streetTerminalBuilder" then
             local proposal = param and param.proposal and param.proposal.proposal
             local toRemove = param.proposal.toRemove
             local toAdd = param.proposal.toAdd
@@ -340,15 +334,19 @@ local script = {
                 local newSegement = proposal.addedSegments[1]
                 local object = proposal.edgeObjectsToAdd[1]
                 if (newSegement.type == 1 and object.category == 2) then
-                    game.interface.sendScriptEvent("__autosig2__", "build",
-                        {
-                            nodes = {newSegement.comp.node0, newSegement.comp.node1},
-                            edgeObjects = func.map(proposal.removedSegments[1].comp.objects, pipe.select(1)),
-                            model = api.res.modelRep.getName(object.modelInstance.modelId),
-                            left = object.left,
-                            oneWay = object.oneWay
-                        }
-                )
+                    if name == "builder.apply" and state.use then
+                        game.interface.sendScriptEvent("__autosig2__", "build",
+                            {
+                                nodes = {newSegement.comp.node0, newSegement.comp.node1},
+                                edgeObjects = func.map(proposal.removedSegments[1].comp.objects, pipe.select(1)),
+                                model = api.res.modelRep.getName(object.modelInstance.modelId),
+                                left = object.left,
+                                oneWay = object.oneWay
+                            }
+                    )
+                    elseif name == "builder.proposalCreate" then
+                        createWindow()
+                    end
                 end
             end
         end
