@@ -8,8 +8,18 @@ local state = {
     fn = {}
 }
 
+local translations = {
+    SIGNAL_DISTANCE = _("SIGNAL_DISTANCE"),
+    AUTOSIG = _("AUTOSIG"),
+    ON = _("ON"),
+    OFF = _("OFF"),
+    METER = _("METER"),
+    NO = _("No"),
+    YES = _("Yes")
+}
+
 local setSpacingText = function(spacing)
-    return string.format("%d%s", spacing, _("METER"))
+    return string.format("%d%s", spacing, translations.METER)
 end
 
 local createWindow = function()
@@ -22,11 +32,11 @@ local createWindow = function()
         useComp:setLayout(useLayout)
         useComp:setId("autosig2.use")
         
-        local use = api.gui.comp.TextView.new(_("AUTOSIG"))
+        local use = api.gui.comp.TextView.new(translations.AUTOSIG)
         
         local useButtonComp = api.gui.comp.ToggleButtonGroup.new(0, 0, false)
-        local useNo = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(_("NO")))
-        local useYes = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(_("YES")))
+        local useNo = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(translations.NO))
+        local useYes = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(translations.YES))
         useButtonComp:setName("ToggleButtonGroup")
         useButtonComp:add(useNo)
         useButtonComp:add(useYes)
@@ -41,7 +51,7 @@ local createWindow = function()
         spacingComp:setLayout(spacingLayout)
         spacingComp:setId("autosig2.spacing")
         
-        local spacingText = api.gui.comp.TextView.new(_("SIGNAL_DISTANCE"))
+        local spacingText = api.gui.comp.TextView.new(translations.SIGNAL_DISTANCE)
         local spacingValue = api.gui.comp.TextView.new(setSpacingText(state.distance))
         local spacingSlider = api.gui.comp.Slider.new(true)
         local spacingSliderLayout = api.gui.layout.BoxLayout.new("HORIZONTAL")
@@ -175,22 +185,21 @@ local function build(param)
         local lastEdge = edgeList[#edgeList]
         local node = lastEdge.isBackward and lastEdge.comp.node0 or lastEdge.comp.node1
         
-        if frozenNodes[node] then
-            isSearchFinished = true
-        else
-            
-            local nextEdges = {}
-            for _, e in ipairs(map[node]) do
-                if e ~= lastEdge.entity then
-                    table.insert(nextEdges, e)
-                end
+        local nextEdges = {}
+        for _, e in ipairs(map[node]) do
+            if e ~= lastEdge.entity then
+                table.insert(nextEdges, e)
             end
-            if #nextEdges == 1 then
-                local nextEdge = nextEdges[1]
-                local comp = api.engine.getComponent(nextEdge, api.type.ComponentType.BASE_EDGE)
-                local allSignals, length = findAllSignalPos(nextEdge)
-                local isBackward = comp.node1 == node
-                
+        end
+        if #nextEdges == 1 then
+            local nextEdge = nextEdges[1]
+            local comp = api.engine.getComponent(nextEdge, api.type.ComponentType.BASE_EDGE)
+            local allSignals, length = findAllSignalPos(nextEdge)
+            local isBackward = comp.node1 == node
+            
+            if frozenNodes[node] then
+                isSearchFinished = true
+            else
                 for _, signal in ipairs(func.sort(func.values(allSignals), isBackward and function(l, r) return l.pos > r.pos end or function(l, r) return l.pos < r.pos end)) do
                     if (signal.isLeft == param.left and isBackward == edgeList[1].isBackward) or
                         (signal.isLeft ~= param.left and isBackward ~= edgeList[1].isBackward)
@@ -207,20 +216,20 @@ local function build(param)
                         break
                     end
                 end
-                
-                if not isSearchFinished then
-                    table.insert(edgeList, {
-                        entity = nextEdge,
-                        comp = comp,
-                        isBackward = isBackward,
-                        startPos = edgeList[#edgeList].endPos,
-                        endPos = edgeList[#edgeList].endPos + length,
-                        length = length
-                    })
-                end
-            else
-                isSearchFinished = true
             end
+            
+            if not isSearchFinished then
+                table.insert(edgeList, {
+                    entity = nextEdge,
+                    comp = comp,
+                    isBackward = isBackward,
+                    startPos = edgeList[#edgeList].endPos,
+                    endPos = edgeList[#edgeList].endPos + length,
+                    length = length
+                })
+            end
+        else
+            isSearchFinished = true
         end
     end
     
