@@ -5,7 +5,9 @@ local func = require "autosig2/func"
 local state = {
     distance = 500,
     use = false,
-    fn = {}
+    replace = false,
+    remove = false,
+    backward = false
 }
 
 local translations = {
@@ -15,7 +17,11 @@ local translations = {
     OFF = _("OFF"),
     METER = _("METER"),
     NO = _("No"),
-    YES = _("Yes")
+    YES = _("Yes"),
+    REPLACE = _("REPLACE"),
+    REMOVE = _("REMOVE"),
+    FORWARD = _("FORWARD"),
+    BACKWARD = _("BACKWARD")
 }
 
 local setSpacingText = function(spacing)
@@ -28,6 +34,7 @@ local createWindow = function()
         local menuLayout = menu:getLayout()
         
         local useComp = api.gui.comp.Component.new("ParamsListComp::ButtonParam")
+        
         local useLayout = api.gui.layout.BoxLayout.new("VERTICAL")
         useComp:setLayout(useLayout)
         useComp:setId("autosig2.use")
@@ -37,12 +44,24 @@ local createWindow = function()
         local useButtonComp = api.gui.comp.ToggleButtonGroup.new(0, 0, false)
         local useNo = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(translations.NO))
         local useYes = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(translations.YES))
+        local useReplace = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(translations.REPLACE))
+        local useRemove = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(translations.REMOVE))
         useButtonComp:setName("ToggleButtonGroup")
         useButtonComp:add(useNo)
         useButtonComp:add(useYes)
+        useButtonComp:add(useReplace)
+        useButtonComp:add(useRemove)
+        
+        local useDirectionComp = api.gui.comp.ToggleButtonGroup.new(0, 0, false)
+        local useForward = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(translations.FORWARD))
+        local useBackward = api.gui.comp.ToggleButton.new(api.gui.comp.TextView.new(translations.BACKWARD))
+        useDirectionComp:setName("ToggleButtonGroup")
+        useDirectionComp:add(useForward)
+        useDirectionComp:add(useBackward)
         
         useLayout:addItem(use)
         useLayout:addItem(useButtonComp)
+        useLayout:addItem(useDirectionComp)
         
         local spacingComp = api.gui.comp.Component.new("ParamsListComp::SliderParam")
         local spacingLayout = api.gui.layout.BoxLayout.new("VERTICAL")
@@ -74,28 +93,96 @@ local createWindow = function()
         menuLayout:addItem(spacingComp)
         
         spacingSlider:onValueChanged(function(value)
-            table.insert(state.fn, function()
+            local cmd = api.cmd.make.sendScriptEvent("autosig2.lua", "__autosig2__", "distance", {distance = value * 10})
+            spacingSlider:invokeLater(function()
                 spacingValue:setText(setSpacingText(value * 10))
-                game.interface.sendScriptEvent("__autosig2__", "distance", {distance = value * 10})
+                api.cmd.sendCommand(cmd, function() end)
             end)
         end)
         
         useNo:onToggle(function()
-            table.insert(state.fn, function()
-                game.interface.sendScriptEvent("__autosig2__", "use", {use = false})
+            local cmd1 = api.cmd.make.sendScriptEvent("autosig2.lua", "__autosig2__", "use", {use = false})
+            local cmd2 = api.cmd.make.sendScriptEvent("autosig2.lua", "__edgeTool__", "off", {sender = "autosig2"})
+            useRemove:invokeLater(function()
+                api.cmd.sendCommand(cmd1, function() end)
+                api.cmd.sendCommand(cmd2, function() end)
                 spacingComp:setVisible(false, false)
+                useDirectionComp:setVisible(false, false)
             end)
         end)
         
         useYes:onToggle(function()
-            table.insert(state.fn, function()
-                game.interface.sendScriptEvent("__autosig2__", "use", {use = true})
-                game.interface.sendScriptEvent("__edgeTool__", "off", {sender = "autosig2"})
+            local cmd1 = api.cmd.make.sendScriptEvent("autosig2.lua", "__autosig2__", "use", {use = true})
+            local cmd2 = api.cmd.make.sendScriptEvent("autosig2.lua", "__edgeTool__", "off", {sender = "autosig2"})
+            useRemove:invokeLater(function()
+                api.cmd.sendCommand(cmd1, function() end)
+                api.cmd.sendCommand(cmd2, function() end)
                 spacingComp:setVisible(true, false)
+                useDirectionComp:setVisible(false, false)
             end)
         end)
         
-        if state.use then useYes:setSelected(true, true) else useNo:setSelected(true, true) end
+        useReplace:onToggle(function()
+            local cmd1 = api.cmd.make.sendScriptEvent("autosig2.lua", "__autosig2__", "replace", {use = true})
+            local cmd2 = api.cmd.make.sendScriptEvent("autosig2.lua", "__edgeTool__", "off", {sender = "autosig2"})
+            useRemove:invokeLater(function()
+                api.cmd.sendCommand(cmd1, function() end)
+                api.cmd.sendCommand(cmd2, function() end)
+                spacingComp:setVisible(false, false)
+                useDirectionComp:setVisible(true, false)
+                if state.backward then
+                    useBackward:setSelected(true, true)
+                else
+                    useForward:setSelected(true, true)
+                end
+            end)
+        end)
+        
+        useRemove:onToggle(function()
+            local cmd1 = api.cmd.make.sendScriptEvent("autosig2.lua", "__autosig2__", "remove", {use = true})
+            local cmd2 = api.cmd.make.sendScriptEvent("autosig2.lua", "__edgeTool__", "off", {sender = "autosig2"})
+            useRemove:invokeLater(function()
+                api.cmd.sendCommand(cmd1, function() end)
+                api.cmd.sendCommand(cmd2, function() end)
+                spacingComp:setVisible(false, false)
+                useDirectionComp:setVisible(true, false)
+                if state.backward then
+                    useBackward:setSelected(true, true)
+                else
+                    useForward:setSelected(true, true)
+                end
+            end)
+        end)
+        
+        useForward:onToggle(function()
+            local cmd1 = api.cmd.make.sendScriptEvent("autosig2.lua", "__autosig2__", "backward", {backward = false})
+            local cmd2 = api.cmd.make.sendScriptEvent("autosig2.lua", "__edgeTool__", "off", {sender = "autosig2"})
+            useRemove:invokeLater(function()
+                api.cmd.sendCommand(cmd1, function() end)
+                api.cmd.sendCommand(cmd2, function() end)
+            end)
+        end)
+        
+        useBackward:onToggle(function()
+            local cmd1 = api.cmd.make.sendScriptEvent("autosig2.lua", "__autosig2__", "backward", {backward = true})
+            local cmd2 = api.cmd.make.sendScriptEvent("autosig2.lua", "__edgeTool__", "off", {sender = "autosig2"})
+            useRemove:invokeLater(function()
+                api.cmd.sendCommand(cmd1, function() end)
+                api.cmd.sendCommand(cmd2, function() end)
+            end)
+        end)
+        
+        if state.use then
+            if state.replace then
+                useReplace:setSelected(true, true)
+            elseif state.remove then
+                useRemove:setSelected(true, true)
+            else
+                useYes:setSelected(true, true)
+            end
+        else
+            useNo:setSelected(true, true)
+        end
     end
 end
 
@@ -197,7 +284,7 @@ local function build(param)
             local allSignals, length = findAllSignalPos(nextEdge)
             local isBackward = comp.node1 == node
             
-            if frozenNodes[node] then
+            if frozenNodes[comp.node0] or frozenNodes[comp.node1] then
                 isSearchFinished = true
             else
                 for _, signal in ipairs(func.sort(func.values(allSignals), isBackward and function(l, r) return l.pos > r.pos end or function(l, r) return l.pos < r.pos end)) do
@@ -294,12 +381,158 @@ local function build(param)
 
 end
 
+local function remove(param)
+    local edgeObjects = param.edgeObjects
+    local nodes = param.nodes
+    local map = api.engine.system.streetSystem.getNode2TrackEdgeMap()
+    local frozenNodes = api.engine.system.streetConnectorSystem.getNode2StreetConnectorMap()
+    local edge = false
+    local newObject = false
+    
+    for _, e in ipairs(map[nodes[1]]) do
+        for _, d in ipairs(map[nodes[2]]) do
+            if d == e then
+                if not edge then
+                    edge = {
+                        entity = e,
+                        isBackward = param.left,
+                        comp = api.engine.getComponent(e, api.type.ComponentType.BASE_EDGE)
+                    }
+                else return end
+            end
+        end
+    end
+    if not edge then return end
+    
+    for _, o in ipairs(edge.comp.objects) do
+        if not func.contains(edgeObjects, o[1]) then
+            if not newObject then
+                newObject = o[1]
+            else return end
+        end
+    end
+    if not newObject then return end
+    
+    local isSearchFinished = false
+    local proposal = api.type.SimpleProposal.new()
+    local id = 0
+    while not isSearchFinished do
+        id = id + 1
+        do
+            local track = api.type.SegmentAndEntity.new()
+            local comp = api.engine.getComponent(edge.entity, api.type.ComponentType.BASE_EDGE)
+            local trackEdge = api.engine.getComponent(edge.entity, api.type.ComponentType.BASE_EDGE_TRACK)
+            
+            track.entity = -id
+            track.playerOwned = {player = api.engine.util.getPlayer()}
+            
+            track.comp.node0 = comp.node0
+            track.comp.node1 = comp.node1
+            for i = 1, 3 do
+                track.comp.tangent0[i] = comp.tangent0[i]
+                track.comp.tangent1[i] = comp.tangent1[i]
+            end
+            track.comp.type = comp.type
+            track.comp.typeIndex = comp.typeIndex
+            
+            track.type = 1
+            track.trackEdge.trackType = trackEdge.trackType
+            track.trackEdge.catenary = trackEdge.catenary
+            local newSigList = comp.objects
+            
+            local allSignals, edgeLength = findAllSignalPos(edge.entity)
+            local refPos = false
+            if allSignals[newObject] then
+                refPos = allSignals[newObject].pos
+            end
+            
+            newSigList = func.fold(
+                newSigList,
+                {},
+                function(ls, idt)
+                    local id, t = table.unpack(idt)
+                    if (api.engine.getComponent(id, api.type.ComponentType.SIGNAL_LIST)) then
+                        local keep = refPos
+                            and (
+                                (not state.backward and ((allSignals[id].isLeft and refPos < allSignals[id].pos) or (not allSignals[id].isLeft and refPos > allSignals[id].pos)))
+                                or (state.backward and ((allSignals[id].isLeft and refPos > allSignals[id].pos) or (not allSignals[id].isLeft and refPos < allSignals[id].pos)))
+                            )
+                            or (not (allSignals[id].isLeft == param.left and param.left == edge.isBackward) and not (allSignals[id].isLeft ~= param.left and param.left ~= edge.isBackward))
+                        if not keep then
+                            proposal.streetProposal.edgeObjectsToRemove[#proposal.streetProposal.edgeObjectsToRemove + 1] = id
+                            if (state.replace and id ~= newObject) then
+                                local rPos = allSignals[id].pos / edgeLength
+                                
+                                local sig = api.type.SimpleStreetProposal.EdgeObject.new()
+                                local left = param.left
+                                if edge.isBackward ~= param.left then left = not left end
+                                sig.edgeEntity = track.entity
+                                sig.param = rPos
+                                sig.oneWay = param.oneWay
+                                sig.left = left
+                                sig.model = param.model
+                                sig.playerEntity = api.engine.util.getPlayer()
+                                
+                                proposal.streetProposal.edgeObjectsToAdd[#proposal.streetProposal.edgeObjectsToAdd + 1] = sig
+                                table.insert(ls, {-#proposal.streetProposal.edgeObjectsToAdd, 2})
+                            end
+                        end
+                        if keep then
+                            table.insert(ls, idt)
+                        end
+                    else
+                        table.insert(ls, idt)
+                    end
+                    return ls
+                end
+            )
+            track.comp.objects = newSigList
+            
+            proposal.streetProposal.edgesToAdd[id] = track
+            proposal.streetProposal.edgesToRemove[id] = edge.entity
+        
+        end
+        
+        local node = ((edge.isBackward and not state.backward) or (not edge.isBackward and state.backward)) and edge.comp.node0 or edge.comp.node1
+        local nextEdges = {}
+        for _, e in ipairs(map[node]) do
+            if e ~= edge.entity then
+                table.insert(nextEdges, e)
+            end
+        end
+        if #nextEdges == 1 then
+            local nextEdge = nextEdges[1]
+            local comp = api.engine.getComponent(nextEdge, api.type.ComponentType.BASE_EDGE)
+            local isBackward = comp.node1 == node
+            
+            edge = {
+                entity = nextEdge,
+                comp = comp,
+                isBackward = isBackward
+            }
+            
+            if frozenNodes[comp.node0] or frozenNodes[comp.node1] then
+                isSearchFinished = true
+            end
+        else
+            isSearchFinished = true
+        end
+    end
+    
+    local cmd = api.cmd.make.buildProposal(proposal, nil, false)
+    api.cmd.sendCommand(cmd, function(_) end)
+
+end
+
+
 local script = {
     handleEvent = function(src, id, name, param)
         if (id == "__edgeTool__" and param.sender ~= "autosig2") then
             if (name == "off") then
                 if (param.sender ~= "ptracks") then
                     state.use = false
+                    state.replace = false
+                    state.remove = false
                 end
             end
         elseif (id == "__autosig2__") then
@@ -308,8 +541,25 @@ local script = {
                 if state.distance < 10 then state.distance = 10 end
             elseif (name == "use") then
                 state.use = param.use
+                state.replace = false
+                state.remove = false
+                state.backward = false
+            elseif (name == "replace") then
+                state.use = true
+                state.replace = true
+                state.remove = false
+            elseif (name == "remove") then
+                state.use = true
+                state.replace = false
+                state.remove = true
+            elseif (name == "backward") then
+                state.backward = param.backward
             elseif (name == "build") then
-                build(param)
+                if state.remove or state.replace then
+                    remove(param)
+                else
+                    build(param)
+                end
             end
         end
     end,
@@ -320,11 +570,10 @@ local script = {
         if data then
             state.distance = data.distance
             state.use = data.use
+            state.remove = data.remove
+            state.replace = data.replace
+            state.backward = data.backward
         end
-    end,
-    guiUpdate = function()
-        for _, fn in ipairs(state.fn) do fn() end
-        state.fn = {}
     end,
     guiHandleEvent = function(id, name, param)
         if id == "streetTerminalBuilder" then

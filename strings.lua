@@ -15,6 +15,10 @@ Usage:
 Stay strong and united before COVID-19!
 
 Changelog:
+1.10
+- Fix crash bug on track connected to depot
+- Add signal removal function
+- Add signal replacing function
 1.9
 - Intergration of AutoSig with into the construction menu
 - Live with auto paralell tracks mod.
@@ -41,6 +45,10 @@ Mode d’emploi :
 Restons prudents! #COVID-19
 
 Changelog:
+1.10
+- Correction du bug de création des signaux vers dêpots.
+- Ajout de fonction de suppression des signaux
+- Ajout de fonction de remplacement des signaux
 1.9
 - Intrégration dans le menu de construction
 - Fonctionne dans le même temps avec mod Voies ferrées parallèles.
@@ -62,6 +70,10 @@ local descCN = [[该模组能够自动在轨道上连续添加信号机
   iii. 遇到车站、车辆段等建筑物
 
 更新记录：
+1.10
+- 修复了遇到轨道连接车辆段情况下时的崩溃错误
+- 增加了快速拆除信号机功能
+- 增加了快速替换信号机功能
 1.9
 - 将选项集成到了建造菜单中
 - 支持同时开启平行轨道模组
@@ -84,14 +96,17 @@ local descTC = [[該模組能夠自動在軌道上連續添加號誌機
 * 該模組可以安全地從存檔中移除
 
 更新記錄：
+1.10
+- 修復了遇到軌道連接車輛段情況下時的崩潰錯誤
+- 增加了快速拆除信號機功能
+- 增加了快速替換信號機功能
 1.9
 - 將選項集成到了建造功能表中
-- 支援同時開啟平行軌道模組
+- 支持同時開啟平行軌道模組
 1.8
 - 修復了信號機建到車站內的錯誤。
 1.7
 - 以新版API重寫了MOD。]]
-
 
 
 function data()
@@ -103,6 +118,10 @@ function data()
             AUTOSIG = "AutoSig",
             ON = "On",
             OFF = "Off",
+            REPLACE = "Replace",
+            REMOVE = "Remove",
+            FORWARD = "Forward",
+            BACKWARD = "Backward",
             METER = "m"
         },
         fr = {
@@ -113,6 +132,10 @@ function data()
             AUTOSIG = "AutoSig",
             OFF = "Désactivé",
             ON = "Activé",
+            REPLACE = "Remplace",
+            REMOVE = "Détruire",
+            FORWARD = "Sens avant",
+            BACKWARD = "Sens arrière",
             METER = "m"
         },
         zh_CN = {
@@ -122,6 +145,10 @@ function data()
             AUTOSIG = "自动放置信号机",
             ON = "开启",
             OFF = "关闭",
+            REPLACE = "替换",
+            REMOVE = "拆除",
+            FORWARD = "前方",
+            BACKWARD = "后方",
             METER = "米"
         },
         zh_TW = {
@@ -131,6 +158,10 @@ function data()
             AUTOSIG = "自動放置號誌機",
             ON = "開啟",
             OFF = "關閉",
+            REPLACE = "替換",
+            REMOVE = "拆除",
+            FORWARD = "前方",
+            BACKWARD = "後方",
             METER = "公尺"
         }
 
