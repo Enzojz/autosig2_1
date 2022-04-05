@@ -187,6 +187,7 @@ local createWindow = function()
 end
 
 local findAllSignalPos = function(edgeId)
+    local isNewBuild = tonumber(getBuildVersion()) > 35020
     local tpn = api.engine.getComponent(edgeId, api.type.ComponentType.TRANSPORT_NETWORK)
     local sections = func.fold(tpn.edges, pipe.new * {},
         function(posList, sec)
@@ -201,6 +202,10 @@ local findAllSignalPos = function(edgeId)
         local s, e, l = table.unpack(sec)
         local sigF = api.engine.system.signalSystem.getSignal(api.type.EdgeId.new(edgeId, i - 1), false)
         local sigR = api.engine.system.signalSystem.getSignal(api.type.EdgeId.new(edgeId, i - 1), true)
+        if isNewBuild then
+            sigF = sigF.entity
+            sigR = sigR.entity
+        end
         if sigF > 0 then
             signals[sigF] = {pos = e, isLeft = true}
         end
