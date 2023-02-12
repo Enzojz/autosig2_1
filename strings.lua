@@ -12,9 +12,10 @@ Usage:
 
 * This mod can be safely removed from gamesaves.
 
-Stay strong and united before COVID-19!
-
 Changelog:
+1.11
+- Fix of dead loop of backward removing
+- Added cost calculates (credit to phobos2077)
 1.10
 - Fix crash bug on track connected to depot
 - Add signal removal function
@@ -42,9 +43,10 @@ Mode d’emploi :
 
 * Ce mod pourrait être désactivé sans souci.
 
-Restons prudents! #COVID-19
-
 Changelog:
+1.11
+- Correction pour la boucle infinie lors la suppression en sens inverse.
+- Ajoute de calculs de côute (crédité à phobos2077)
 1.10
 - Correction du bug de création des signaux vers dêpots.
 - Ajout de fonction de suppression des signaux
@@ -70,6 +72,9 @@ local descCN = [[该模组能够自动在轨道上连续添加信号机
   iii. 遇到车站、车辆段等建筑物
 
 更新记录：
+1.11
+- 修正了反向拆除信号机时的死循环
+- 增加了费用的计算(感谢phobos2077)
 1.10
 - 修复了遇到轨道连接车辆段情况下时的崩溃错误
 - 增加了快速拆除信号机功能
@@ -96,6 +101,9 @@ local descTC = [[該模組能夠自動在軌道上連續添加號誌機
 * 該模組可以安全地從存檔中移除
 
 更新記錄：
+1.11
+- 修正了反向拆除信號機時的死循環
+- 增加了費用的計算(感謝phobos2077)
 1.10
 - 修復了遇到軌道連接車輛段情況下時的崩潰錯誤
 - 增加了快速拆除信號機功能

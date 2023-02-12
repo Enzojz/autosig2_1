@@ -217,6 +217,23 @@ local findAllSignalPos = function(edgeId)
     return signals, edgeLength
 end
 
+-- https://steamcommunity.com/workshop/filedetails/discussion/2138210967/3387282447744159286/
+local bookCosts = function (amount)
+    local cat = api.type.JournalEntryCategory.new()
+    cat.type = 2 -- construction
+    cat.carrier = 1 -- rail
+    cat.construction = 2 -- signal
+    cat.maintenance = 0
+    cat.other = 0
+
+    local je = api.type.JournalEntry.new()
+    je.amount = -math.floor(amount)
+    je.category = cat
+    je.time = -1
+
+    api.cmd.sendCommand(api.cmd.make.bookJournalEntry(api.engine.util.getPlayer(), je))
+end
+
 local function build(param)
     local edgeObjects = param.edgeObjects
     local nodes = param.nodes
@@ -382,8 +399,14 @@ local function build(param)
     end
     
     local cmd = api.cmd.make.buildProposal(proposal, nil, false)
-    api.cmd.sendCommand(cmd, function(_) end)
-
+    -- https://steamcommunity.com/workshop/filedetails/discussion/2138210967/3387282447744159286/
+    api.cmd.sendCommand(cmd, function(cmd, success)
+        -- Book costs of proposal.
+        if success and cmd.resultProposalData.costs and cmd.resultProposalData.costs > 0 then
+            bookCosts(cmd.resultProposalData.costs)
+            api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "__autosig2__", "costs", {costs = cmd.resultProposalData.costs}))
+        end
+    end)
 end
 
 local function remove(param)
