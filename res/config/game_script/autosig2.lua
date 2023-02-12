@@ -476,8 +476,7 @@ local function remove(param)
                                 local rPos = allSignals[id].pos / edgeLength
                                 
                                 local sig = api.type.SimpleStreetProposal.EdgeObject.new()
-                                local left = param.left
-                                -- if edge.isBackward ~= param.left then left = not left end
+                                local left = searchBackward == edge.isBackward and param.left or not param.left
                                 sig.edgeEntity = track.entity
                                 sig.param = rPos
                                 sig.oneWay = param.oneWay
