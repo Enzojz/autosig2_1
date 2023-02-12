@@ -394,13 +394,15 @@ local function remove(param)
     local edge = false
     local newObject = false
     
+    local searchBackward = (not state.backward and param.left) or (state.backward and not param.left)
+
     for _, e in ipairs(map[nodes[1]]) do
         for _, d in ipairs(map[nodes[2]]) do
             if d == e then
                 if not edge then
                     edge = {
                         entity = e,
-                        isBackward = param.left,
+                        isBackward = (not state.backward and param.left) or (state.backward and not param.left),
                         comp = api.engine.getComponent(e, api.type.ComponentType.BASE_EDGE)
                     }
                 else return end
@@ -421,7 +423,9 @@ local function remove(param)
     local isSearchFinished = false
     local proposal = api.type.SimpleProposal.new()
     local id = 0
-    while not isSearchFinished do
+    local lp = 0
+    while not isSearchFinished and lp < 10 do
+        lp = lp + 1
         id = id + 1
         do
             local track = api.type.SegmentAndEntity.new()
@@ -457,12 +461,15 @@ local function remove(param)
                 function(ls, idt)
                     local id, t = table.unpack(idt)
                     if (api.engine.getComponent(id, api.type.ComponentType.SIGNAL_LIST)) then
-                        local keep = refPos
-                            and (
-                                (not state.backward and ((allSignals[id].isLeft and refPos < allSignals[id].pos) or (not allSignals[id].isLeft and refPos > allSignals[id].pos)))
-                                or (state.backward and ((allSignals[id].isLeft and refPos > allSignals[id].pos) or (not allSignals[id].isLeft and refPos < allSignals[id].pos)))
-                            )
-                            or (not (allSignals[id].isLeft == param.left and param.left == edge.isBackward) and not (allSignals[id].isLeft ~= param.left and param.left ~= edge.isBackward))
+                        local keep = true
+                        if refPos and not state.backward then
+                            keep = (allSignals[id].isLeft and refPos < allSignals[id].pos) or (not allSignals[id].isLeft and refPos > allSignals[id].pos)
+                        elseif refPos and state.backward then
+                            keep = (allSignals[id].isLeft and refPos > allSignals[id].pos) or (not allSignals[id].isLeft and refPos < allSignals[id].pos)
+                        else
+                            keep = (allSignals[id].isLeft ~= param.left and searchBackward == edge.isBackward) or (allSignals[id].isLeft == param.left and searchBackward ~= edge.isBackward)
+                        end
+                        
                         if not keep then
                             proposal.streetProposal.edgeObjectsToRemove[#proposal.streetProposal.edgeObjectsToRemove + 1] = id
                             if (state.replace and id ~= newObject) then
@@ -470,7 +477,7 @@ local function remove(param)
                                 
                                 local sig = api.type.SimpleStreetProposal.EdgeObject.new()
                                 local left = param.left
-                                if edge.isBackward ~= param.left then left = not left end
+                                -- if edge.isBackward ~= param.left then left = not left end
                                 sig.edgeEntity = track.entity
                                 sig.param = rPos
                                 sig.oneWay = param.oneWay
@@ -498,7 +505,7 @@ local function remove(param)
         
         end
         
-        local node = ((edge.isBackward and not state.backward) or (not edge.isBackward and state.backward)) and edge.comp.node0 or edge.comp.node1
+        local node = edge.isBackward and edge.comp.node0 or edge.comp.node1
         local nextEdges = {}
         for _, e in ipairs(map[node]) do
             if e ~= edge.entity then
@@ -524,7 +531,7 @@ local function remove(param)
         end
     end
     
-    local cmd = api.cmd.make.buildProposal(proposal, nil, false)
+    local cmd = api.cmd.make.buildProposal(proposal, nil, true)
     api.cmd.sendCommand(cmd, function(_) end)
 
 end
