@@ -217,23 +217,6 @@ local findAllSignalPos = function(edgeId)
     return signals, edgeLength
 end
 
--- https://steamcommunity.com/workshop/filedetails/discussion/2138210967/3387282447744159286/
-local bookCosts = function (amount)
-    local cat = api.type.JournalEntryCategory.new()
-    cat.type = 2 -- construction
-    cat.carrier = 1 -- rail
-    cat.construction = 2 -- signal
-    cat.maintenance = 0
-    cat.other = 0
-
-    local je = api.type.JournalEntry.new()
-    je.amount = -math.floor(amount)
-    je.category = cat
-    je.time = -1
-
-    api.cmd.sendCommand(api.cmd.make.bookJournalEntry(api.engine.util.getPlayer(), je))
-end
-
 local function build(param)
     local edgeObjects = param.edgeObjects
     local nodes = param.nodes
@@ -260,7 +243,7 @@ local function build(param)
         end
     end
     if not newObject then return end
-    
+
     local signals, edgeLength = findAllSignalPos(edge.entity)
     
     local newSigInfo = signals[newObject]
@@ -347,12 +330,15 @@ local function build(param)
         table.insert(allPos, i)
     end
     
+    local existingObjects = {}
     for _, edge in ipairs(edgeList) do
         edge.allPos = func.filter(allPos, function(pos) return pos > edge.startPos and pos < edge.endPos end)
+        for _, obj in ipairs(edge.comp.objects) do
+            table.insert(existingObjects, obj[1])
+        end
     end
     
     local proposal = api.type.SimpleProposal.new()
-    
     for id, edge in ipairs(func.filter(edgeList, function(e) return #e.allPos > 0 end)) do
         local track = api.type.SegmentAndEntity.new()
         local comp = api.engine.getComponent(edge.entity, api.type.ComponentType.BASE_EDGE)
@@ -398,12 +384,49 @@ local function build(param)
         proposal.streetProposal.edgesToRemove[id] = edge.entity
     end
     
-    local cmd = api.cmd.make.buildProposal(proposal, nil, false)
+    local cmd = api.cmd.make.buildProposal(proposal, nil, true)
     -- https://steamcommunity.com/workshop/filedetails/discussion/2138210967/3387282447744159286/
     api.cmd.sendCommand(cmd, function(cmd, success)
         -- Book costs of proposal.
         if success and cmd.resultProposalData.costs and cmd.resultProposalData.costs > 0 then
-            bookCosts(cmd.resultProposalData.costs)
+            local sigList = {}
+            for id, _ in pairs(cmd.resultProposalData.entity2tn) do
+                local entity = api.engine.getComponent(id, api.type.ComponentType.BASE_EDGE)
+                if entity then
+                    for _, obj in ipairs(entity.objects) do
+                        if api.engine.getComponent(obj[1], api.type.ComponentType.SIGNAL_LIST) then
+                            if not func.contains(existingObjects, obj[1]) then
+                                table.insert(sigList, obj[1])
+                            end
+                        end
+                    end
+                end
+            end
+
+            local n = #sigList
+            local avgCost = -math.floor(cmd.resultProposalData.costs / n)
+            for _, sigId in ipairs(sigList) do
+                local cat = api.type.JournalEntryCategory.new()
+                cat.type = 2 -- construction
+                cat.carrier = 1 -- rail
+                cat.construction = 2 -- signal
+                cat.maintenance = 0
+                cat.other = 0
+    
+                local journal = api.type.JournalEntry.new()
+                journal.amount = avgCost
+                journal.category = cat
+                journal.time = -1
+
+                local instance = api.engine.getComponent(sigId, api.type.ComponentType.MODEL_INSTANCE_LIST)
+                local vec = api.type.Vec3f.new(
+                    instance.fatInstances[1].transf[13],
+                    instance.fatInstances[1].transf[14],
+                    instance.fatInstances[1].transf[15]
+                )
+    
+                api.cmd.sendCommand(api.cmd.make.bookJournalEntry(api.engine.util.getPlayer(), journal, vec))
+            end
             api.cmd.sendCommand(api.cmd.make.sendScriptEvent("", "__autosig2__", "costs", {costs = cmd.resultProposalData.costs}))
         end
     end)
@@ -499,11 +522,10 @@ local function remove(param)
                                 local rPos = allSignals[id].pos / edgeLength
                                 
                                 local sig = api.type.SimpleStreetProposal.EdgeObject.new()
-                                local left = searchBackward == edge.isBackward and param.left or not param.left
                                 sig.edgeEntity = track.entity
                                 sig.param = rPos
                                 sig.oneWay = param.oneWay
-                                sig.left = left
+                                sig.left = allSignals[id].isLeft
                                 sig.model = param.model
                                 sig.playerEntity = api.engine.util.getPlayer()
                                 
@@ -627,6 +649,9 @@ local script = {
                 local object = proposal.edgeObjectsToAdd[1]
                 if (newSegement.type == 1 and object.category == 2) then
                     if name == "builder.apply" and state.use then
+                        local entity = api.engine.getComponent(object.resultEntity, api.type.ComponentType.MODEL_INSTANCE_LIST)
+                        local tf = entity.fatInstances[1].transf
+                        local position = {tf[13], tf[14], tf[15]}
                         game.interface.sendScriptEvent("__autosig2__", "build",
                             {
                                 nodes = {newSegement.comp.node0, newSegement.comp.node1},
